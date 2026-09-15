@@ -83,7 +83,10 @@ else
         {
             case HttpStatusCode.OK:
                 var turn = await response.Content.ReadFromJsonAsync<TurnResultDto>();
-                ApplyState(turn!.Status, turn.Winner, turn.MyBoard, turn.OpponentBoard);
+                if (turn is null)
+                    _moveError = "Réponse du serveur inattendue (corps vide ou invalide).";
+                else
+                    ApplyState(turn.Status, turn.Winner, turn.MyBoard, turn.OpponentBoard);
                 break;
             case HttpStatusCode.Conflict:
                 _moveError = "Coup invalide : case déjà jouée ou partie terminée.";
