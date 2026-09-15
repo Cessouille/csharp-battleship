@@ -19,17 +19,17 @@ jobs:
             skill: audit-bugs-lint
             report_path: docs/audits/bugs-lint.md
             needs_dotnet: true
-            allowed_tools: "Read,Grep,Glob,Write(docs/audits/bugs-lint.md),Bash(dotnet build:*),Bash(dotnet test:*),Bash(dotnet format:*)"
+            allowed_tools: "Read,Grep,Glob,Edit(docs/audits/bugs-lint.md),Bash(dotnet build:*),Bash(dotnet test:*),Bash(dotnet format:*)"
           - id: code-health
             skill: audit-code-health
             report_path: docs/audits/code-health.md
             needs_dotnet: false
-            allowed_tools: "Read,Grep,Glob,Write(docs/audits/code-health.md)"
+            allowed_tools: "Read,Grep,Glob,Edit(docs/audits/code-health.md)"
           - id: documentation
             skill: audit-documentation
             report_path: docs/audits/documentation.md
             needs_dotnet: false
-            allowed_tools: "Read,Grep,Glob,Write(docs/audits/documentation.md)"
+            allowed_tools: "Read,Grep,Glob,Edit(docs/audits/documentation.md)"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -48,15 +48,17 @@ jobs:
             /${{ matrix.audit.skill }}
             Commit analysé: ${{ github.sha }}
           claude_args: |
-            --model claude-opus-5
+            --model claude-sonnet-5
             --allowedTools "${{ matrix.audit.allowed_tools }}"
-            --max-turns 40
+            --max-turns 60
 
       - name: Upload ${{ matrix.audit.id }} report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: audit-${{ matrix.audit.id }}
           path: ${{ matrix.audit.report_path }}
+          if-no-files-found: warn
           retention-days: 1
 
   package-report:
@@ -65,12 +67,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download audit reports
+        continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           pattern: audit-*
           path: docs/audits
           merge-multiple: true
-          if-no-artifact-found: warn
+
+      - name: Ensure report directory has content
+        run: |
+          mkdir -p docs/audits
+          if [ -z "$(ls -A docs/audits)" ]; then
+            echo "Aucun rapport d'audit n'a été généré (toutes les jobs d'audit ont échoué ou n'ont produit aucun fichier)." > docs/audits/AUCUN_RAPPORT.md
+          fi
 
       - name: Publish combined nightly audit report
         uses: actions/upload-artifact@v4
