@@ -113,6 +113,13 @@ Lancer les deux projets avec `--launch-profile https` pour que ces ports soient 
 10. **Confidentialité dans les prompts** : ne jamais transmettre de secrets, clés, ou données personnelles réelles à un outil IA (contrainte explicite du cours, diapo 7). Utiliser des exemples de données pour illustrer un besoin.
 11. **Code défendable par le binôme** : chaque membre doit pouvoir expliquer le fonctionnement, le périmètre et les limites du code livré, et le QCM individuel porte sur ces mêmes notions. À qualité égale, préférer la solution que l'utilisateur peut expliquer à celle qui est seulement plus courte ou plus astucieuse.
 
+## Git
+
+- **Ne jamais se mettre en co-auteur d'un commit ou d'une pull request** : pas de ligne `Co-Authored-By: ...` ni d'équivalent pointant vers un outil IA, y compris quand le changement a été largement généré par un agent. L'historique Git remis pour la notation (diapos 11-12, 61-63) doit rester attribué aux deux membres du binôme uniquement. La contribution de l'IA se documente dans `PROMPTS.md` et `REVUE-IA.md`, pas dans les métadonnées du commit.
+- Commits qui identifient le travail effectué (message clair, un sujet par commit), changements relus avant validation — voir aussi le point 6 de la checklist de rendu.
+- Ne pas committer de secrets ni d'artefacts de build (`bin/`, `obj/`) — `.gitignore` les couvre déjà, vérifier `git status` avant un `git add` large plutôt que de faire confiance à l'ignore par défaut.
+- Pas de réécriture d'un historique déjà poussé sur `origin/main` : corriger par un commit en avant, jamais par un `rebase`/`amend`/`push --force` sur ce qui est publié.
+
 ## Commandes utiles
 
 ```
