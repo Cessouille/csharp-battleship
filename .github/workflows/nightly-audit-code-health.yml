@@ -1,0 +1,40 @@
+name: Nightly audit - code health
+
+on:
+  schedule:
+    - cron: "0 8 * * *" # ~04:00 America/Toronto
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Run code health audit
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            /audit-code-health
+            Commit analysé: ${{ github.sha }}
+          claude_args: |
+            --model claude-opus-5
+            --allowedTools "Read,Grep,Glob,Write(docs/audits/code-health.md)"
+            --max-turns 40
+
+      - name: Commit report if changed
+        run: |
+          git config user.name "claude[bot]"
+          git config user.email "claude[bot]@users.noreply.github.com"
+          git add docs/audits/code-health.md
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(audit): nightly code health report"
+            git push
+          else
+            echo "No changes to commit"
+          fi
