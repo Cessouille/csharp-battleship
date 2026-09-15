@@ -1,0 +1,113 @@
+using BattleShip.Models.Domain;
+
+namespace BattleShip.Tests.Engine;
+
+public class GameTests
+{
+    private static Game CreateGameWithSingleCellShips()
+    {
+        var human = new Board();
+        human.TryPlaceShip(ShipKind.Torpilleur, new Coordinate(0, 0), Orientation.Horizontal, 1);
+        var computer = new Board();
+        computer.TryPlaceShip(ShipKind.Torpilleur, new Coordinate(9, 9), Orientation.Horizontal, 1);
+        return new Game(Guid.NewGuid(), human, computer);
+    }
+
+    [Fact]
+    public void PlayHumanShot_OnAlreadyPlayedCell_IsRejected_AndDoesNotMutateState()
+    {
+        var game = CreateGameWithSingleCellShips();
+        var target = new Coordinate(0, 0); // ne coule pas l'unique navire adverse (9,9)
+        game.PlayHumanShot(target);
+        var hitsBefore = game.ComputerBoard.ShotsReceived.Count;
+
+        var result = game.PlayHumanShot(target);
+
+        Assert.IsType<MoveResult.Rejected>(result);
+        Assert.Equal(MoveRejectionReason.AlreadyPlayed, ((MoveResult.Rejected)result).Reason);
+        Assert.Equal(hitsBefore, game.ComputerBoard.ShotsReceived.Count);
+    }
+
+    [Theory]
+    [InlineData(-1, 0)]
+    [InlineData(0, -1)]
+    [InlineData(10, 0)]
+    [InlineData(0, 10)]
+    public void PlayHumanShot_OnOutOfGridCoordinate_IsRejected(int row, int column)
+    {
+        var game = CreateGameWithSingleCellShips();
+
+        var result = game.PlayHumanShot(new Coordinate(row, column));
+
+        Assert.IsType<MoveResult.Rejected>(result);
+        Assert.Equal(MoveRejectionReason.OutOfGrid, ((MoveResult.Rejected)result).Reason);
+    }
+
+    [Fact]
+    public void PlayHumanShot_AfterGameFinished_IsRejected_AndComputerBoardUnaffected()
+    {
+        var game = CreateGameWithSingleCellShips();
+        game.PlayHumanShot(new Coordinate(9, 9)); // coule l'unique navire adverse -> partie finie
+        Assert.Equal(GameStatus.Finished, game.Status);
+        var shotsBefore = game.ComputerBoard.ShotsReceived.Count;
+
+        var result = game.PlayHumanShot(new Coordinate(5, 5));
+
+        Assert.IsType<MoveResult.Rejected>(result);
+        Assert.Equal(MoveRejectionReason.GameAlreadyFinished, ((MoveResult.Rejected)result).Reason);
+        Assert.Equal(shotsBefore, game.ComputerBoard.ShotsReceived.Count);
+    }
+
+    [Fact]
+    public void PlayHumanShot_SinkingLastEnemyShip_EndsGame_NoComputerCounterShot()
+    {
+        var game = CreateGameWithSingleCellShips();
+
+        var result = game.PlayHumanShot(new Coordinate(9, 9));
+
+        var accepted = Assert.IsType<MoveResult.Accepted>(result);
+        Assert.Equal(ShotOutcome.Sunk, accepted.Turn.PlayerShot.Outcome);
+        Assert.Null(accepted.Turn.ComputerShot);
+        Assert.Equal(PlayerId.Human, accepted.Turn.Winner);
+        Assert.Equal(GameStatus.Finished, accepted.Turn.Status);
+        Assert.Equal(GameStatus.Finished, game.Status);
+    }
+
+    [Fact]
+    public void PlayHumanShot_OnMissedCell_ReturnsComputerCounterShot_GameContinues()
+    {
+        var game = CreateGameWithSingleCellShips();
+
+        var result = game.PlayHumanShot(new Coordinate(0, 1)); // manque le navire adverse en (9,9)
+
+        var accepted = Assert.IsType<MoveResult.Accepted>(result);
+        Assert.Equal(ShotOutcome.Miss, accepted.Turn.PlayerShot.Outcome);
+        Assert.NotNull(accepted.Turn.ComputerShot);
+        Assert.Equal(GameStatus.InProgress, accepted.Turn.Status);
+    }
+
+    [Fact]
+    public void ComputerAutoShot_OnlyTargetsUntriedCellsOnHumanBoard_AcrossFullGame()
+    {
+        var rng = new Random(42);
+        var game = Game.CreateRandom(Guid.NewGuid(), rng);
+        var computerTargets = new List<Coordinate>();
+
+        for (var row = 0; row < BoardGrid.Size && game.Status == GameStatus.InProgress; row++)
+        {
+            for (var column = 0; column < BoardGrid.Size && game.Status == GameStatus.InProgress; column++)
+            {
+                var target = new Coordinate(row, column);
+                if (!game.ComputerBoard.IsValidTarget(target))
+                    continue;
+
+                var result = game.PlayHumanShot(target);
+                if (result is MoveResult.Accepted { Turn.ComputerShot: { } computerShot })
+                    computerTargets.Add(computerShot.Target);
+            }
+        }
+
+        Assert.Equal(computerTargets.Count, computerTargets.Distinct().Count());
+        Assert.All(computerTargets, c => Assert.True(BoardGrid.Contains(c)));
+    }
+}
