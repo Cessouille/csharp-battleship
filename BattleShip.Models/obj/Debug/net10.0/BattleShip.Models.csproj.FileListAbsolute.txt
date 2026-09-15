@@ -1,0 +1,11 @@
+C:\Users\chaussoc\Desktop\Cours\-EMA-A3-COURS\ASP.NET MICROSOFT\BattleShip\BattleShip.Models\bin\Debug\net10.0\BattleShip.Models.deps.json
+C:\Users\chaussoc\Desktop\Cours\-EMA-A3-COURS\ASP.NET MICROSOFT\BattleShip\BattleShip.Models\bin\Debug\net10.0\BattleShip.Models.dll
+C:\Users\chaussoc\Desktop\Cours\-EMA-A3-COURS\ASP.NET MICROSOFT\BattleShip\BattleShip.Models\bin\Debug\net10.0\BattleShip.Models.pdb
+C:\Users\chaussoc\Desktop\Cours\-EMA-A3-COURS\ASP.NET MICROSOFT\BattleShip\BattleShip.Models\obj\Debug\net10.0\BattleShip.Models.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\chaussoc\Desktop\Cours\-EMA-A3-COURS\ASP.NET MICROSOFT\BattleShip\BattleShip.Models\obj\Debug\net10.0\BattleShip.Models.AssemblyInfoInputs.cache
+C:\Users\chaussoc\Desktop\Cours\-EMA-A3-COURS\ASP.NET MICROSOFT\BattleShip\BattleShip.Models\obj\Debug\net10.0\BattleShip.Models.AssemblyInfo.cs
+C:\Users\chaussoc\Desktop\Cours\-EMA-A3-COURS\ASP.NET MICROSOFT\BattleShip\BattleShip.Models\obj\Debug\net10.0\BattleShip.Models.csproj.CoreCompileInputs.cache
+C:\Users\chaussoc\Desktop\Cours\-EMA-A3-COURS\ASP.NET MICROSOFT\BattleShip\BattleShip.Models\obj\Debug\net10.0\BattleShip.Models.dll
+C:\Users\chaussoc\Desktop\Cours\-EMA-A3-COURS\ASP.NET MICROSOFT\BattleShip\BattleShip.Models\obj\Debug\net10.0\refint\BattleShip.Models.dll
+C:\Users\chaussoc\Desktop\Cours\-EMA-A3-COURS\ASP.NET MICROSOFT\BattleShip\BattleShip.Models\obj\Debug\net10.0\BattleShip.Models.pdb
+C:\Users\chaussoc\Desktop\Cours\-EMA-A3-COURS\ASP.NET MICROSOFT\BattleShip\BattleShip.Models\obj\Debug\net10.0\ref\BattleShip.Models.dll

@@ -1,0 +1,6 @@
+@BattleShip.API_HostAddress = http://localhost:5119
+
+GET {{BattleShip.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

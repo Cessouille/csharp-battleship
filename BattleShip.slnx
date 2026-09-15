@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="BattleShip.API/BattleShip.API.csproj" />
+  <Project Path="BattleShip.App/BattleShip.App.csproj" />
+  <Project Path="BattleShip.Models/BattleShip.Models.csproj" />
+  <Project Path="BattleShip.Tests/BattleShip.Tests.csproj" />
+</Solution>
