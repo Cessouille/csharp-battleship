@@ -49,8 +49,8 @@ public static class BoardViewModel
             grid[c.Row, c.Column] = CellDisplayState.Hit;
 
         foreach (var ship in board.SunkShips)
-        foreach (var c in ship.Cells)
-            grid[c.Row, c.Column] = CellDisplayState.Sunk;
+            foreach (var c in ship.Cells)
+                grid[c.Row, c.Column] = CellDisplayState.Sunk;
 
         return grid;
     }

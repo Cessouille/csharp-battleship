@@ -100,12 +100,12 @@ public sealed class Game
     {
         var untried = new List<Coordinate>(BoardGrid.Size * BoardGrid.Size);
         for (var row = 0; row < BoardGrid.Size; row++)
-        for (var column = 0; column < BoardGrid.Size; column++)
-        {
-            var c = new Coordinate(row, column);
-            if (HumanBoard.IsValidTarget(c))
-                untried.Add(c);
-        }
+            for (var column = 0; column < BoardGrid.Size; column++)
+            {
+                var c = new Coordinate(row, column);
+                if (HumanBoard.IsValidTarget(c))
+                    untried.Add(c);
+            }
 
         return untried[rng.Next(untried.Count)];
     }
