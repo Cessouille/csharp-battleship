@@ -1,0 +1,15 @@
+@namespace BattleShip.App.Components
+@using BattleShip.Models.Contracts
+
+<ul class="list-unstyled small">
+    @foreach (var ship in Ships)
+    {
+        <li class="@(ship.IsSunk ? "text-decoration-line-through text-muted" : "")">
+            @ship.Kind (@ship.Cells.Count) — @(ship.IsSunk ? "coulé" : "en jeu")
+        </li>
+    }
+</ul>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<ShipViewDto> Ships { get; set; } = [];
+}

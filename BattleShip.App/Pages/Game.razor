@@ -1,0 +1,108 @@
+@page "/game/{GameId:guid}"
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@using System.Net
+@using System.Net.Http.Json
+@using BattleShip.App.Components
+@using BattleShip.App.Game
+@using BattleShip.Models.Contracts
+
+<PageTitle>Partie en cours</PageTitle>
+
+@if (_notFound)
+{
+    <div class="alert alert-warning">
+        Partie introuvable. <a href="/">Retour à l'accueil</a>.
+    </div>
+}
+else if (_myBoard is null || _opponentBoard is null)
+{
+    <p>Chargement…</p>
+}
+else
+{
+    <GameStatusBanner Status="@_status" Winner="@_winner" OnNewGame="GoHomeAsync" />
+
+    @if (_moveError is not null)
+    {
+        <div class="alert alert-danger">@_moveError</div>
+    }
+
+    <div class="row">
+        <div class="col-auto">
+            <h2 class="h5">Votre plateau</h2>
+            <BoardGrid Size="_myBoard.Size" Cells="_myBoard.ToGrid()" Interactive="false" />
+            <FleetLegend Ships="_myBoard.Ships" />
+        </div>
+        <div class="col-auto">
+            <h2 class="h5">Plateau adverse</h2>
+            <BoardGrid Size="_opponentBoard.Size" Cells="_opponentBoard.ToGrid()"
+                       Interactive="@(_status == "InProgress")" OnCellClick="PlayShotAsync" />
+            <FleetLegend Ships="_opponentBoard.SunkShips" />
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public Guid GameId { get; set; }
+
+    private MyBoardDto? _myBoard;
+    private OpponentBoardDto? _opponentBoard;
+    private string _status = "InProgress";
+    private string? _winner;
+    private bool _notFound;
+    private string? _moveError;
+
+    protected override Task OnParametersSetAsync() => LoadStateAsync();
+
+    private async Task LoadStateAsync()
+    {
+        _notFound = false;
+        var response = await Http.GetAsync($"api/games/{GameId}");
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            _notFound = true;
+            return;
+        }
+
+        var state = await response.Content.ReadFromJsonAsync<GameStateDto>();
+        ApplyState(state!.Status, state.Winner, state.MyBoard, state.OpponentBoard);
+    }
+
+    private async Task PlayShotAsync((int Row, int Column) target)
+    {
+        _moveError = null;
+        var response = await Http.PostAsJsonAsync($"api/games/{GameId}/shots", new ShotRequestDto(target.Row, target.Column));
+
+        switch (response.StatusCode)
+        {
+            case HttpStatusCode.OK:
+                var turn = await response.Content.ReadFromJsonAsync<TurnResultDto>();
+                ApplyState(turn!.Status, turn.Winner, turn.MyBoard, turn.OpponentBoard);
+                break;
+            case HttpStatusCode.Conflict:
+                _moveError = "Coup invalide : case déjà jouée ou partie terminée.";
+                break;
+            case HttpStatusCode.BadRequest:
+                _moveError = "Coordonnées hors grille.";
+                break;
+            default:
+                _moveError = $"Erreur inattendue (HTTP {(int)response.StatusCode}).";
+                break;
+        }
+    }
+
+    private void ApplyState(string status, string? winner, MyBoardDto myBoard, OpponentBoardDto opponentBoard)
+    {
+        _status = status;
+        _winner = winner;
+        _myBoard = myBoard;
+        _opponentBoard = opponentBoard;
+    }
+
+    private Task GoHomeAsync()
+    {
+        Navigation.NavigateTo("/");
+        return Task.CompletedTask;
+    }
+}

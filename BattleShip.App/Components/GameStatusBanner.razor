@@ -1,0 +1,19 @@
+@namespace BattleShip.App.Components
+
+@if (Status == "Finished")
+{
+    <div class="alert alert-success d-flex justify-content-between align-items-center">
+        <span>Partie terminée — vainqueur : @(Winner == "Human" ? "vous" : "l'ordinateur")</span>
+        <button type="button" class="btn btn-primary" @onclick="OnNewGame">Nouvelle partie</button>
+    </div>
+}
+else
+{
+    <div class="alert alert-info">Partie en cours — cliquez une case de la grille adverse pour tirer.</div>
+}
+
+@code {
+    [Parameter, EditorRequired] public string Status { get; set; } = "InProgress";
+    [Parameter] public string? Winner { get; set; }
+    [Parameter] public EventCallback OnNewGame { get; set; }
+}

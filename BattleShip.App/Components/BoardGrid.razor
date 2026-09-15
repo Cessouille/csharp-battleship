@@ -1,0 +1,28 @@
+@namespace BattleShip.App.Components
+@using BattleShip.App.Game
+
+<div class="board-grid" style="--board-size:@Size">
+    @for (var row = 0; row < Size; row++)
+    {
+        var r = row;
+        for (var column = 0; column < Size; column++)
+        {
+            var c = column;
+            var state = Cells[r, c];
+            var interactive = Interactive && state is CellDisplayState.Empty or CellDisplayState.Ship;
+            <button type="button"
+                    class="board-cell cell-@state.ToString().ToLowerInvariant() @(interactive ? "interactive" : "")"
+                    disabled="@(!interactive)"
+                    aria-label="Case ligne @r colonne @c"
+                    @onclick="() => OnCellClick.InvokeAsync((r, c))">
+            </button>
+        }
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public int Size { get; set; }
+    [Parameter, EditorRequired] public CellDisplayState[,] Cells { get; set; } = new CellDisplayState[0, 0];
+    [Parameter] public bool Interactive { get; set; }
+    [Parameter] public EventCallback<(int Row, int Column)> OnCellClick { get; set; }
+}

@@ -1,0 +1,43 @@
+.board-grid {
+    display: grid;
+    grid-template-columns: repeat(var(--board-size), 2rem);
+    grid-template-rows: repeat(var(--board-size), 2rem);
+    gap: 2px;
+}
+
+.board-cell {
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border: 1px solid #6c9bd1;
+    background-color: #dceaf7;
+    border-radius: 2px;
+}
+
+.board-cell.interactive {
+    cursor: pointer;
+}
+
+.board-cell.interactive:hover {
+    background-color: #b8d6f2;
+}
+
+.board-cell:disabled {
+    cursor: default;
+}
+
+.cell-ship {
+    background-color: #6c757d;
+}
+
+.cell-hit {
+    background-color: #fd7e14;
+}
+
+.cell-miss {
+    background-color: #ffffff;
+}
+
+.cell-sunk {
+    background-color: #dc3545;
+}
