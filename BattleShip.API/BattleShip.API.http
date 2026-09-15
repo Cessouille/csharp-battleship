@@ -1,6 +1,28 @@
-@BattleShip.API_HostAddress = http://localhost:5119
+@api = https://localhost:7186
 
-GET {{BattleShip.API_HostAddress}}/weatherforecast/
+### Créer une nouvelle partie
+POST {{api}}/api/games
 Accept: application/json
 
-###
+### Lire l'état d'une partie (remplacer {{gameId}})
+@gameId = 00000000-0000-0000-0000-000000000000
+GET {{api}}/api/games/{{gameId}}
+Accept: application/json
+
+### Jouer un tir valide
+POST {{api}}/api/games/{{gameId}}/shots
+Content-Type: application/json
+
+{ "row": 0, "column": 0 }
+
+### Coordonnées hors grille -> 400 ValidationProblem
+POST {{api}}/api/games/{{gameId}}/shots
+Content-Type: application/json
+
+{ "row": -1, "column": 0 }
+
+### Rejouer la même case -> 409 Conflict (ALREADY_PLAYED)
+POST {{api}}/api/games/{{gameId}}/shots
+Content-Type: application/json
+
+{ "row": 0, "column": 0 }
