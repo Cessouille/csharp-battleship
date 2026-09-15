@@ -25,7 +25,7 @@ Option 1 pour ce premier socle. Objectif de cette itération : livrer une partie
 
 ## Vérification et réexamen
 
-Tests `ComputerAutoShot_OnlyTargetsUntriedCellsOnHumanBoard` et `ComputerAutoShot_NeverTargetsOutOfGridCoordinate`. À réexaminer si le backlog priorise un adversaire plus difficile.
+Test `ComputerAutoShot_OnlyTargetsUntriedCellsOnHumanBoard_AcrossFullGame` (`BattleShip.Tests/Engine/GameTests.cs`) : rejoue une partie complète et vérifie à la fois l'unicité des cibles de l'ordinateur et que chacune reste dans la grille (`BoardGrid.Contains`). À réexaminer si le backlog priorise un adversaire plus difficile.
 
 ## Références
 
