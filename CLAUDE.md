@@ -11,31 +11,22 @@ Projet d'école (binôme) : une bataille navale jouable dans le navigateur.
 
 Le socle attendu (contrainte du cours, diapos 5-6) est une **partie complète et jouable de bout en bout contre l'ordinateur** : création de partie → placement → tirs alternés → détection de fin → nouvelle partie. Ce n'est pas une somme de morceaux isolés : tant que ce parcours complet n'est pas démontrable dans le navigateur, le socle n'est pas atteint, même si chaque brique compile et a des tests verts séparément.
 
-État actuel : scaffold par défaut (`dotnet new` : pages Weather/Counter, `Class1.cs`, `UnitTest1.cs`). Rien du jeu n'est implémenté.
+État actuel (mis à jour 2026-09-15) : le socle est implémenté — moteur de jeu (`BattleShip.Models/Domain`), API
+Minimal API avec FluentValidation (`BattleShip.API`), un service gRPC-Web (`GetGameState`), interface Blazor
+jouable de bout en bout (`BattleShip.App`), et des tests xUnit métier + mapping anti-fuite + intégration API +
+intégration gRPC (`BattleShip.Tests`). Tous les fichiers du scaffold par défaut (`Weather.razor`, `Counter.razor`,
+`Class1.cs`, `UnitTest1.cs`, endpoint `/weatherforecast`, `wwwroot/sample-data/weather.json`) ont été supprimés.
+Le détail des fonctionnalités livrées, des arbitrages de périmètre et des limites connues est dans `README.md` ;
+les décisions structurantes sont dans `docs/adr/` (0001 à 0006) ; `docs/ticket.md` liste des pistes de backlog
+proposées mais pas encore tranchées.
 
-### État des lieux vérifié à la racine
+`.gitignore`, `global.json`, `README.md`, `PROMPTS.md`, `REVUE-IA.md`, `docs/adr/` et `Protos/` sont tous présents
+à la racine. SDK : `10.0.401` installé sur ce poste, compatible avec `global.json` (`10.0.100` +
+`rollForward: latestFeature`).
 
-| Élément | État |
-|---|---|
-| Les 4 projets + `BattleShip.slnx` | présents |
-| `.gitignore` | **absent** |
-| `global.json` | **absent** — prérequis avant toute commande de build/solution (copier `csharp-school/Ressources Bataille Navale/global.json`) |
-| `README.md` | présent mais vide en pratique (UTF-16, une ligne de titre) |
-| `PROMPTS.md`, `REVUE-IA.md`, `docs/adr/` | **absents** — ce sont trois livrables notés (diapo 11) |
-| `Protos/` | **absent** — à créer pour le contrat gRPC-Web |
-
-SDK : `10.0.401` installé sur ce poste, compatible avec le `global.json` du cours (`10.0.100` + `rollForward: latestFeature`). Revérifier `dotnet --version` depuis la racine une fois le fichier copié.
-
-**Problème connu à corriger en priorité** : sans `.gitignore`, le commit `init` (`5c9435e`, **déjà poussé sur `origin/main`**) a embarqué 1327 fichiers de build sur 1401 fichiers suivis. Avant toute nouvelle fonctionnalité, nettoyer par un commit en avant — pas de réécriture d'historique, il est publié :
-
-```
-dotnet new gitignore                                    # à la racine
-git rm -r --cached .                                    # désindexe tout, sans toucher aux fichiers du disque
-git add .                                               # ré-indexe en appliquant le .gitignore
-git commit -m "chore: ignore les artefacts de build"
-```
-
-Le gabarit `dotnet new gitignore` couvre au passage `.idea/`, actuellement non suivi mais non ignoré non plus. Commit à isoler du reste du travail, et à proposer à l'utilisateur avant de le passer : ce n'est pas anodin sur un historique déjà poussé.
+**Écart connu entre les livrables** : `PROMPTS.md` et `REVUE-IA.md` doivent rester le miroir réel des échanges et
+revues décisifs au fil du travail (règles 4 et 5 plus bas) — vérifier qu'ils ne prennent pas de retard sur les
+décisions déjà actées dans `docs/adr/` avant de considérer un lot de travail terminé.
 
 ## Structure du dépôt
 
@@ -94,7 +85,7 @@ Relevés dans les `Properties/launchSettings.json` — ce sont ceux à utiliser,
 | `BattleShip.App` | `https://localhost:7206` | `http://localhost:5209` |
 
 Trois endroits dépendent de ces valeurs et doivent rester cohérents entre eux :
-1. `BattleShip.App/Program.cs` — `HttpClient.BaseAddress` pointe aujourd'hui sur `builder.HostEnvironment.BaseAddress`, c'est-à-dire l'App elle-même (scaffold par défaut). À repointer sur l'API pour tout appel réel.
+1. `BattleShip.App/Program.cs` — `HttpClient.BaseAddress` est repointé sur l'API réelle (lu depuis `wwwroot/appsettings.json`, clé `ApiBaseAddress`), plus l'auto-référence du scaffold par défaut.
 2. La politique CORS côté API — doit autoriser l'origine de l'App, sinon le navigateur bloque la réponse alors que le serveur a répondu correctement.
 3. L'adresse du `GrpcChannel` côté App (`GrpcWebHandler`) — même origine que l'API.
 
@@ -102,8 +93,8 @@ Lancer les deux projets avec `--launch-profile https` pour que ces ports soient 
 
 ### Mise en place gRPC-Web (checklist technique)
 
-- Contrat partagé dans un dossier `Protos/` à la racine (ex. `Protos/battleship.proto`), référencé par les deux projets.
-- `BattleShip.API.csproj` : `<Protobuf Include="../Protos/battleship.proto" GrpcServices="Server" />`, packages `Grpc.AspNetCore` + `Grpc.AspNetCore.Web` ; enregistrer `AddGrpc()` avant `Build()`, puis `UseGrpcWeb()` et `MapGrpcService<...>().EnableGrpcWeb()` après.
+- Contrat partagé dans un dossier `Protos/` à la racine (`Protos/battleship.proto`), référencé par les deux projets.
+- `BattleShip.API.csproj` : `<Protobuf Include="../Protos/battleship.proto" GrpcServices="Both" />` — `Both` plutôt que `Server` seul, pour que `BattleShip.Tests` (qui référence ce projet) obtienne aussi le stub client et puisse piloter le service en gRPC-Web via `WebApplicationFactory` sans dupliquer la génération protobuf dans un second projet (voir `docs/adr/0005-transport-grpc-web.md`). Packages `Grpc.AspNetCore` + `Grpc.AspNetCore.Web` ; enregistrer `AddGrpc()` avant `Build()`, puis `UseGrpcWeb()` et `MapGrpcService<...>().EnableGrpcWeb()` après.
 - `BattleShip.App.csproj` : `<Protobuf Include="../Protos/battleship.proto" GrpcServices="Client" />`, packages `Grpc.Net.Client`, `Grpc.Net.Client.Web`, `Google.Protobuf`, `Grpc.Tools` (`PrivateAssets="all"`, c'est un outil de build).
 - Numéros de champs proto stables une fois posés (compatibilité des évolutions).
 - Valider les messages gRPC entrants avec FluentValidation comme les entrées HTTP — même exigence, même sévérité.
@@ -116,9 +107,9 @@ Lancer les deux projets avec `--launch-profile https` pour que ces ports soient 
 4. **Échanges décisifs avec l'IA → PROMPTS.md** : quand une réponse d'agent influence une décision de conception (pas les échanges de routine), consigner l'entrée dans `PROMPTS.md` à la racine de ce dépôt selon le gabarit du référentiel (diapo 56). Ne pas dupliquer l'analyse déjà faite dans un ADR — lier plutôt que recopier.
 5. **Revue critique → REVUE-IA.md** : au moins trois revues argumentées sur des propositions IA (acceptées, adaptées ou rejetées), avec hypothèse vérifiable, scénario, résultat attendu vs observé, décision. Une proposition qui "a l'air de marcher" n'est pas une vérification.
 6. **Ne jamais confondre plausible et vérifié** : une API citée doit être confrontée à sa documentation puis reproduite ; le ton assuré d'une réponse IA ne prouve rien. Avant d'affirmer qu'un comportement est correct, l'exécuter (build, tests, ou scénario manuel documenté).
-7. **Git** : commits qui identifient le travail effectué, changements relus avant validation. Ne pas committer de secrets ni d'artefacts de build (`bin/`, `obj/`) — voir le nettoyage à faire, section « Ce que c'est » ci-dessus.
+7. **Git** : commits qui identifient le travail effectué, changements relus avant validation. Ne pas committer de secrets ni d'artefacts de build (`bin/`, `obj/`) — `.gitignore` les couvre déjà, vérifier `git status` avant un `git add` large plutôt que de faire confiance à l'ignore par défaut.
 8. **README.md** : doit rester suffisant à lui seul pour qu'un autre binôme lance le projet en s'y limitant. Contenu attendu : noms des membres, commandes de lancement (API + App, ports réels), fonctionnalités livrées, arbitrages du backlog (ce qui a été fait, écarté, et pourquoi) et limites connues. Le mettre à jour dès qu'une commande, un prérequis ou le périmètre change — jamais en fin de projet seulement.
-9. **Nettoyer le scaffold par défaut** : les pages/fichiers générés par `dotnet new` sans rapport avec le jeu (`Weather.razor`, `Counter.razor`, endpoint `/weatherforecast`, `Class1.cs`, `UnitTest1.cs`, `BattleShip.API.http` pointé sur `/weatherforecast`, `wwwroot/sample-data/weather.json`) sont des gabarits de démarrage, pas des livrables — les supprimer ou les remplacer au fur et à mesure qu'une vraie fonctionnalité les couvre, ne pas les laisser traîner à côté du code de jeu.
+9. **Ne pas laisser traîner de scaffold** : les fichiers du scaffold `dotnet new` sans rapport avec le jeu ont déjà été supprimés (voir « État actuel » en tête de ce document). Le principe reste valable pour tout nouveau générateur utilisé plus tard (ex. un futur `dotnet new` pour une extension) : supprimer ou remplacer les gabarits de démarrage au fur et à mesure qu'une vraie fonctionnalité les couvre, ne rien laisser traîner à côté du code de jeu.
 10. **Confidentialité dans les prompts** : ne jamais transmettre de secrets, clés, ou données personnelles réelles à un outil IA (contrainte explicite du cours, diapo 7). Utiliser des exemples de données pour illustrer un besoin.
 11. **Code défendable par le binôme** : chaque membre doit pouvoir expliquer le fonctionnement, le périmètre et les limites du code livré, et le QCM individuel porte sur ces mêmes notions. À qualité égale, préférer la solution que l'utilisateur peut expliquer à celle qui est seulement plus courte ou plus astucieuse.
 
