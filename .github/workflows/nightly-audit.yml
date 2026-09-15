@@ -3,33 +3,54 @@ name: Nightly audit
 on:
   schedule:
     - cron: "10 8 * * *" # ~04:10 America/Toronto
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      audit:
+        description: "Audit à lancer"
+        type: choice
+        default: all
+        options:
+          - all
+          - bugs-lint
+          - code-health
+          - documentation
 
 permissions:
   contents: read
   id-token: write
 
 jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - id: set-matrix
+        env:
+          SELECTED: ${{ inputs.audit || 'all' }}
+        run: |
+          ALL='[
+            {"id":"bugs-lint","skill":"audit-bugs-lint","report_path":"docs/audits/bugs-lint.md","needs_dotnet":true,"allowed_tools":"Read,Grep,Glob,Edit(docs/audits/bugs-lint.md),Bash(dotnet build:*),Bash(dotnet test:*),Bash(dotnet format:*)"},
+            {"id":"code-health","skill":"audit-code-health","report_path":"docs/audits/code-health.md","needs_dotnet":false,"allowed_tools":"Read,Grep,Glob,Edit(docs/audits/code-health.md)"},
+            {"id":"documentation","skill":"audit-documentation","report_path":"docs/audits/documentation.md","needs_dotnet":false,"allowed_tools":"Read,Grep,Glob,Edit(docs/audits/documentation.md)"}
+          ]'
+          if [ "$SELECTED" = "all" ]; then
+            FILTERED="$ALL"
+          else
+            FILTERED=$(echo "$ALL" | jq -c --arg id "$SELECTED" '[.[] | select(.id == $id)]')
+            if [ "$(echo "$FILTERED" | jq 'length')" -eq 0 ]; then
+              echo "::error::Audit inconnu: $SELECTED"
+              exit 1
+            fi
+          fi
+          MATRIX=$(echo "$FILTERED" | jq -c '{audit: .}')
+          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+
   audit:
+    needs: prepare
     strategy:
       fail-fast: false
-      matrix:
-        audit:
-          - id: bugs-lint
-            skill: audit-bugs-lint
-            report_path: docs/audits/bugs-lint.md
-            needs_dotnet: true
-            allowed_tools: "Read,Grep,Glob,Edit(docs/audits/bugs-lint.md),Bash(dotnet build:*),Bash(dotnet test:*),Bash(dotnet format:*)"
-          - id: code-health
-            skill: audit-code-health
-            report_path: docs/audits/code-health.md
-            needs_dotnet: false
-            allowed_tools: "Read,Grep,Glob,Edit(docs/audits/code-health.md)"
-          - id: documentation
-            skill: audit-documentation
-            report_path: docs/audits/documentation.md
-            needs_dotnet: false
-            allowed_tools: "Read,Grep,Glob,Edit(docs/audits/documentation.md)"
+      matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
