@@ -1,4 +1,5 @@
 using BattleShip.Models.Domain;
+using BattleShip.Tests.TestData;
 
 namespace BattleShip.Tests.Engine;
 
@@ -99,10 +100,7 @@ public class BoardTests
     }
 
     [Theory]
-    [InlineData(-1, 0)]
-    [InlineData(0, -1)]
-    [InlineData(10, 0)]
-    [InlineData(0, 10)]
+    [MemberData(nameof(OutOfGridCoordinates.Values), MemberType = typeof(OutOfGridCoordinates))]
     public void IsValidTarget_ReturnsFalseForOutOfGridCoordinate(int row, int column)
     {
         var board = new Board();

@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using BattleShip.Models.Contracts;
 using BattleShip.Models.Domain;
+using BattleShip.Tests.TestData;
 using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace BattleShip.Tests.Api;
@@ -62,10 +63,7 @@ public class GameEndpointsTests(WebApplicationFactory<Program> factory) : IClass
     }
 
     [Theory]
-    [InlineData(-1, 0)]
-    [InlineData(0, -1)]
-    [InlineData(10, 0)]
-    [InlineData(0, 10)]
+    [MemberData(nameof(OutOfGridCoordinates.Values), MemberType = typeof(OutOfGridCoordinates))]
     public async Task PostShots_OutOfGridCoordinate_Returns400ValidationProblem(int row, int column)
     {
         var game = await CreateGameAsync();
