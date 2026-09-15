@@ -65,3 +65,25 @@ Hypothèse rejetée : le `503` est un artefact de la façon dont l'outil d'inspe
 
 **Preuves et limites**
 Log serveur reproductible en relançant l'appel depuis `/verifier-partie` avec un GUID inconnu. Limite : l'origine exacte du `503` dans l'outil d'inspection réseau n'a pas été investiguée plus loin (code source de l'outil non examiné) — la conclusion s'appuie sur l'absence d'erreur côté serveur et la cohérence du comportement observé côté client, pas sur une explication confirmée du mécanisme d'affichage.
+
+---
+
+## Revue : le correctif de concurrence sur `Game` empêche-t-il vraiment le scénario décrit par l'audit ?
+
+**Proposition examinée**
+Constat de l'audit `audit-bugs-lint` (rapport du 2026-09-15, commit `cc9908a`) : `InMemoryGameStore` expose un `Game` mutable sans verrou, si bien que deux requêtes concurrentes sur le même `gameId` pourraient toutes deux passer `ComputerBoard.IsValidTarget(target)` avant que l'une des deux n'appelle `ReceiveShot`, produisant un coup compté deux fois. Correctif proposé (par l'audit) : verrouiller autour de toute la méthode `PlayHumanShot`.
+
+**Hypothèse à vérifier**
+1) Le scénario décrit est réellement reproductible sans correctif (pas seulement plausible en théorie). 2) Un verrou par instance `Game` (`Lock _gate`, méthode `Locked<T>`) suffit à l'empêcher, sans introduire d'interblocage malgré son usage imbriqué (`PlayHumanShot` verrouille en interne, les endpoints ré-englobent l'appel dans `Locked(...)`).
+
+**Scénario**
+Test `GameTests.PlayHumanShot_ConcurrentCallsOnSameCell_OnlyOneIsAccepted` : 32 tâches lancées en parallèle (démarrage synchronisé par un `ManualResetEventSlim`) appellent toutes `PlayHumanShot` sur la même coordonnée d'une partie fraîche. Résultat attendu avant exécution : exactement un `MoveResult.Accepted`, les 31 autres `Rejected(AlreadyPlayed)`. Erreur que ce contrôle serait capable de détecter : plus d'un `Accepted` (double-comptage), ou une exception issue d'une corruption du `HashSet<Coordinate>` sous-jacent.
+
+**Résultat réellement observé**
+Avec le verrou en place : test vert de façon reproductible (plusieurs exécutions). Pour vérifier que le test détecte vraiment la régression et ne passe pas « par hasard » : verrou temporairement retiré et délai artificiel de 5 ms inséré entre la validation et l'écriture (pour forcer l'entrelacement, la fenêtre de course naturelle étant trop étroite pour se déclencher de façon fiable sur 32 tâches sans cette aide). Résultat : échec reproductible du test, confirmant à la fois que le scénario de l'audit est réel et que le test le détecte.
+
+**Décision et justification**
+Correctif de l'audit accepté, adapté dans sa portée : verrou par instance de `Game` (pas un verrou global sur le store, qui aurait pénalisé des parties sans rapport) et méthode `Locked<T>` réentrante exposée pour englober aussi les lectures côté `GameEndpoints`/`BattleshipGrpcService` — l'audit ne mentionnait que l'écriture, mais une lecture concurrente à une écriture en cours pose le même risque de lecture d'un état à moitié muté.
+
+**Preuves et limites**
+Test restauré et vert dans la suite complète (43/43) après restauration du verrou ; commit `9d3c501`, détail du raisonnement dans `docs/adr/0007-concurrence-partie.md`. Limite explicitement documentée dans l'ADR : ce verrou ne protège qu'un seul processus API ; il ne couvrirait pas un futur déploiement multi-instance avec le stockage en mémoire actuel.

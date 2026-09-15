@@ -29,3 +29,19 @@
 **Vérification** : test `BoardViewMapperTests.ToOpponentBoardDto_WithNoShotsTaken_ExposesNothing` (plateau avec flotte connue, zéro tir reçu → `Hits`/`Misses`/`SunkShips` tous vides) et son pendant réseau `GetGameState_OpponentBoardView_RevealsExactlyOneCellPerShotTaken` côté API. Résultat attendu : aucune case non ciblée ne doit apparaître dans la réponse ; résultat observé : conforme sur les deux tests.
 
 **Preuve** : `BattleShip.Models/Contracts/BoardViewMapper.cs`, `BattleShip.Tests/Contracts/BoardViewMapperTests.cs`, `BattleShip.Tests/Api/GameEndpointsTests.cs`, commit `223603d`.
+
+---
+
+## 2026-09-15 — Tri des constats de trois audits automatisés
+
+**Outil / modèle** : Claude Code (Sonnet 5), en tant que consommateur des rapports produits par les skills `audit-bugs-lint`/`audit-code-health`/`audit-documentation` (mis en place par le binôme, voir `.github/workflows/nightly-audit.yml`).
+**Contexte** : trois rapports d'audit collés dans la conversation (documentation, bugs/lint, santé du code), tous sur le commit `cc9908a`. Il fallait distinguer ce qui méritait une correction immédiate de ce qui était déjà une décision assumée ailleurs dans le dépôt.
+**Prompt** : les trois rapports transmis tels quels par l'utilisateur, sans instruction plus précise que d'y donner suite.
+
+**Réponse résumée** : proposition de traiter comme réels : le `CLAUDE.md` périmé (scaffold vide, nettoyage déjà fait), un nom de test erroné dans l'ADR 0004, `PROMPTS.md`/`REVUE-IA.md` encore vides, les 2 violations `dotnet format`, l'absence de verrou sur `Game` partagé entre requêtes concurrentes, un `!` non défensif dans `Game.razor`, et la duplication mineure de données de test — et de **ne pas** toucher au constat SOLID sur `Game` (mélange orchestration des règles / stratégie IA), que l'audit lui-même qualifie de déjà discuté et volontairement différé dans l'ADR 0004.
+
+**Décision** : tous les constats « réels » acceptés et corrigés ; le constat SOLID rejeté comme action immédiate, conformément au raisonnement de l'audit lui-même (« à réexaminer alors, pas avant »).
+
+**Vérification** : `dotnet build`/`dotnet test`/`dotnet format --verify-no-changes` relancés après chaque correctif (43/43 tests au final, 0 avertissement). Pour le correctif de concurrence spécifiquement, voir la revue dédiée ci-dessous.
+
+**Preuve** : commits `250aa6c` à `2d205b3`.
