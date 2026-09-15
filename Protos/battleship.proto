@@ -1,0 +1,43 @@
+syntax = "proto3";
+option csharp_namespace = "BattleShip.Grpc";
+package battleship;
+
+service Battleship {
+  rpc GetGameState (GetGameStateRequest) returns (GameStateReply);
+}
+
+message GetGameStateRequest {
+  string game_id = 1; // GUID sous forme de chaîne
+}
+
+message CoordinateMessage {
+  int32 row = 1;
+  int32 column = 2;
+}
+
+message ShipMessage {
+  string kind = 1;
+  repeated CoordinateMessage cells = 2;
+  bool is_sunk = 3;
+}
+
+message MyBoardMessage {
+  int32 size = 1;
+  repeated ShipMessage ships = 2;
+  repeated CoordinateMessage cells_hit_by_opponent = 3;
+}
+
+message OpponentBoardMessage {
+  int32 size = 1;
+  repeated CoordinateMessage hits = 2;
+  repeated CoordinateMessage misses = 3;
+  repeated ShipMessage sunk_ships = 4;
+}
+
+message GameStateReply {
+  string game_id = 1;
+  string status = 2;   // "InProgress" | "Finished"
+  string winner = 3;   // "" si aucun
+  MyBoardMessage my_board = 4;
+  OpponentBoardMessage opponent_board = 5;
+}

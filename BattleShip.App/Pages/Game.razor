@@ -1,11 +1,14 @@
 @page "/game/{GameId:guid}"
 @inject HttpClient Http
+@inject BattleShip.Grpc.Battleship.BattleshipClient GrpcClient
 @inject NavigationManager Navigation
 @using System.Net
 @using System.Net.Http.Json
 @using BattleShip.App.Components
 @using BattleShip.App.Game
 @using BattleShip.Models.Contracts
+@using global::BattleShip.Grpc
+@using global::Grpc.Core
 
 <PageTitle>Partie en cours</PageTitle>
 
@@ -58,15 +61,17 @@ else
     private async Task LoadStateAsync()
     {
         _notFound = false;
-        var response = await Http.GetAsync($"api/games/{GameId}");
-        if (response.StatusCode == HttpStatusCode.NotFound)
+        try
+        {
+            // Hydratation via gRPC-Web : c'est l'échange gRPC réellement utilisé par le jeu, pas une démo isolée.
+            var reply = await GrpcClient.GetGameStateAsync(new GetGameStateRequest { GameId = GameId.ToString() });
+            ApplyState(reply.Status, string.IsNullOrEmpty(reply.Winner) ? null : reply.Winner,
+                reply.MyBoard.ToMyBoardDto(), reply.OpponentBoard.ToOpponentBoardDto());
+        }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.NotFound)
         {
             _notFound = true;
-            return;
         }
-
-        var state = await response.Content.ReadFromJsonAsync<GameStateDto>();
-        ApplyState(state!.Status, state.Winner, state.MyBoard, state.OpponentBoard);
     }
 
     private async Task PlayShotAsync((int Row, int Column) target)

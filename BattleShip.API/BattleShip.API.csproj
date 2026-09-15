@@ -9,11 +9,20 @@
   <ItemGroup>
     <PackageReference Include="FluentValidation" Version="12.1.1" />
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
+    <PackageReference Include="Grpc.AspNetCore" Version="2.83.0" />
+    <PackageReference Include="Grpc.AspNetCore.Web" Version="2.83.0" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\BattleShip.Models\BattleShip.Models.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- "Both" plutôt que "Server" : le stub client n'est jamais appelé en production, mais permet à
+         BattleShip.Tests (qui référence ce projet) de piloter le service en gRPC-Web via WebApplicationFactory
+         sans dupliquer la génération protobuf dans un second projet -->
+    <Protobuf Include="../Protos/battleship.proto" GrpcServices="Both" Link="Protos/battleship.proto" />
   </ItemGroup>
 
 </Project>

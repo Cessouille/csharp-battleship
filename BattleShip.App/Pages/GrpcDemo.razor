@@ -1,0 +1,60 @@
+@page "/verifier-partie"
+@inject BattleShip.Grpc.Battleship.BattleshipClient GrpcClient
+@using global::BattleShip.Grpc
+@using global::Grpc.Core
+
+<PageTitle>Vérifier une partie (gRPC-Web)</PageTitle>
+
+<h1>Vérifier une partie via gRPC-Web</h1>
+
+<p>
+    Démonstration directe de l'échange gRPC-Web <code>GetGameState</code> utilisé par la page de jeu pour son
+    hydratation. Saisissez l'identifiant (GUID) d'une partie créée depuis l'accueil pour un appel réussi, ou un
+    identifiant inconnu/quelconque pour observer l'erreur renvoyée par le serveur.
+</p>
+
+<div class="input-group" style="max-width: 32rem;">
+    <input type="text" class="form-control" placeholder="Identifiant de partie (GUID)" @bind="_gameIdInput" />
+    <button type="button" class="btn btn-primary" @onclick="CheckAsync" disabled="@_checking">
+        @(_checking ? "Vérification…" : "Charger via gRPC-Web")
+    </button>
+</div>
+
+@if (_success is not null)
+{
+    <div class="alert alert-success mt-3">
+        Succès (@_success.Status) — plateau adverse : @_success.OpponentBoard.Hits.Count touché(s),
+        @_success.OpponentBoard.Misses.Count manqué(s), @_success.OpponentBoard.SunkShips.Count navire(s) coulé(s).
+    </div>
+}
+
+@if (_error is not null)
+{
+    <div class="alert alert-danger mt-3">Erreur gRPC-Web : @_error</div>
+}
+
+@code {
+    private string _gameIdInput = "";
+    private bool _checking;
+    private GameStateReply? _success;
+    private string? _error;
+
+    private async Task CheckAsync()
+    {
+        _checking = true;
+        _success = null;
+        _error = null;
+        try
+        {
+            _success = await GrpcClient.GetGameStateAsync(new GetGameStateRequest { GameId = _gameIdInput });
+        }
+        catch (RpcException ex)
+        {
+            _error = $"{ex.StatusCode} — {ex.Status.Detail}";
+        }
+        finally
+        {
+            _checking = false;
+        }
+    }
+}
