@@ -1,32 +1,18 @@
-using System.Net.Http.Json;
 using BattleShip.Grpc;
 using BattleShip.Models.Contracts;
+using BattleShip.Models.Domain;
+using BattleShip.Tests.TestData;
 using Grpc.Core;
-using Grpc.Net.Client;
-using Grpc.Net.Client.Web;
 using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace BattleShip.Tests.Api;
 
-public class GrpcGameStateTests : IClassFixture<WebApplicationFactory<Program>>
+public class GrpcGameStateTests(WebApplicationFactory<Program> factory) : IClassFixture<WebApplicationFactory<Program>>
 {
-    private readonly Battleship.BattleshipClient _client;
-    private readonly HttpClient _restClient;
+    private readonly Battleship.BattleshipClient _client = ApiClients.CreateGrpcClient(factory);
+    private readonly HttpClient _restClient = factory.CreateClient();
 
-    public GrpcGameStateTests(WebApplicationFactory<Program> factory)
-    {
-        _restClient = factory.CreateClient();
-        var httpClient = factory.CreateDefaultClient(new GrpcWebHandler(GrpcWebMode.GrpcWeb, new HttpClientHandler()));
-        var channel = GrpcChannel.ForAddress(httpClient.BaseAddress!, new GrpcChannelOptions { HttpClient = httpClient });
-        _client = new Battleship.BattleshipClient(channel);
-    }
-
-    private async Task<Guid> CreateGameAsync()
-    {
-        var response = await _restClient.PostAsync("/api/games", null);
-        var created = await response.Content.ReadFromJsonAsync<CreateGameResponseDto>();
-        return created!.GameId;
-    }
+    private async Task<Guid> CreateGameAsync() => (await _restClient.CreateGameAsync()).GameId;
 
     [Fact]
     public async Task GetGameState_ExistingGame_ReturnsExpectedShape()
@@ -38,7 +24,7 @@ public class GrpcGameStateTests : IClassFixture<WebApplicationFactory<Program>>
         Assert.Equal(gameId.ToString(), reply.GameId);
         Assert.Equal("InProgress", reply.Status);
         Assert.Equal(10, reply.MyBoard.Size);
-        Assert.Equal(Models.Domain.Fleet.Standard.Count, reply.MyBoard.Ships.Count);
+        Assert.Equal(Fleet.Standard.Count, reply.MyBoard.Ships.Count);
         Assert.Empty(reply.OpponentBoard.Hits);
     }
 
@@ -58,5 +44,16 @@ public class GrpcGameStateTests : IClassFixture<WebApplicationFactory<Program>>
             _client.GetGameStateAsync(new GetGameStateRequest { GameId = "pas-un-guid" }).ResponseAsync);
 
         Assert.Equal(StatusCode.InvalidArgument, ex.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetGameState_ReturnsOptionsAndRemainingScans()
+    {
+        var created = await _restClient.CreateGameAsync(new CreateGameRequestDto(Radar: true));
+
+        var reply = await _client.GetGameStateAsync(new GetGameStateRequest { GameId = created.GameId.ToString() });
+
+        Assert.True(reply.Options.Radar);
+        Assert.Equal(RadarRules.ScansPerGame, reply.Actions.ScansRemaining);
     }
 }

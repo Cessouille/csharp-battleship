@@ -87,3 +87,47 @@ Correctif de l'audit accepté, adapté dans sa portée : verrou par instance de 
 
 **Preuves et limites**
 Test restauré et vert dans la suite complète (43/43) après restauration du verrou ; commit `9d3c501`, détail du raisonnement dans `docs/adr/0007-concurrence-partie.md`. Limite explicitement documentée dans l'ADR : ce verrou ne protège qu'un seul processus API ; il ne couvrirait pas un futur déploiement multi-instance avec le stockage en mémoire actuel.
+
+---
+
+## Revue : l'IA probabiliste proposée respecte-t-elle vraiment la règle « pas d'information cachée » ?
+
+**Proposition examinée**
+Implémentation de TICKET-03 générée par l'IA : `ProbabilityTargeting` (`BattleShip.Models/Ai`) alimentée uniquement par `HumanBoard.ToOpponentBoardDto()`, avec l'argument que l'anti-triche est « structurel » puisque l'interface `IComputerTargeting` ne reçoit jamais de `Board`.
+
+**Hypothèse à vérifier**
+1) L'argument de type ne suffit pas à lui seul : `Game.PlayComputerShot` pourrait très bien construire une vue enrichie des vraies positions avant de la passer à la stratégie. Il faut un test qui échoue dans ce cas. 2) La stratégie est réellement meilleure que l'ancien tir aléatoire (sinon l'ADR 0004 n'a aucune raison d'être remplacée).
+
+**Scénario**
+Test `GameTests.ComputerShot_SameVisibleHistory_DifferentHiddenFleets_SameTarget` : deux parties à graine identique, même historique visible sur le plateau humain (une touche, un raté), croiseur caché horizontal dans l'une et vertical dans l'autre. Résultat attendu : même cible de riposte. Erreur détectable : une riposte qui dépend des positions cachées. Pour la qualité : `ProbabilityTargeting_SinksFleetInFewerShotsThanRandom_OnFixedSeeds` sur 30 graines fixes.
+
+**Résultat réellement observé**
+Test vert avec le code livré. Neutralisation : `PlayComputerShot` modifié temporairement pour ajouter toutes les cases de navires non coulés aux `Hits` de la vue transmise → le test échoue (`Assert.Equal() Failure: Values differ`), de même que `ComputerAutoShot_OnlyTargetsUntriedCellsOnHumanBoard_AcrossFullGame`. Code restauré, suite verte. Mesure relevée pendant la vérification : 45,2 tirs en moyenne pour couler la flotte contre 94,9 pour la référence aléatoire. Le test `ComputeDensity_IgnoresSunkShipSizes` a aussi été neutralisé (tailles des navires coulés non retirées) : il échoue, puis repasse une fois la règle restaurée.
+
+**Décision et justification**
+Proposition acceptée, complétée : l'argument de type a été conservé mais doublé d'un test comportemental au niveau de `Game`, là où la triche serait réellement introduite. Le seuil du benchmark reste volontairement « strictement meilleur que l'aléatoire » plutôt qu'une valeur chiffrée, pour ne pas figer un détail d'algorithme dans un test.
+
+**Preuves et limites**
+`BattleShip.Tests/Engine/ProbabilityTargetingTests.cs`, `BattleShip.Tests/Engine/GameTests.cs`, `docs/adr/0008-ia-grille-probabilite.md`. Limite : le test anti-triche compare deux configurations cachées précises ; il ne prouve pas l'absence de toute dépendance cachée possible, seulement qu'une fuite des positions dans la vue est détectée.
+
+---
+
+## Revue : un paramètre de corps nullable rend-il vraiment le corps facultatif sur `POST /api/games` ?
+
+**Proposition examinée**
+Plan d'implémentation généré par l'IA pour TICKET-00 : ajouter un paramètre `CreateGameRequestDto?` à l'endpoint de création pour que « sans corps → partie classique », en affirmant que les tests existants, qui postent sans corps, le prouveraient. Le plan marquait lui-même ce point « à vérifier ».
+
+**Hypothèse à vérifier**
+Une requête `POST /api/games` sans corps ni `Content-Type` atteint l'endpoint et reçoit `201 Created`.
+
+**Scénario**
+Suite de tests existante (`GameEndpointsTests`, `GrpcGameStateTests` postent `null`), puis API lancée localement et interrogée avec `curl` : sans corps, avec `Content-Type: application/json` sans corps, avec `{}`, avec `{"radar":"oui"}`. Journalisation `Microsoft.AspNetCore` passée en `Debug` pour lire la décision du routage.
+
+**Résultat réellement observé**
+10 tests en échec. `curl` sans corps : `404`. Journal : « Request did not match any endpoints » — seul le point de terminaison gRPC « Unimplemented service » est évalué, l'endpoint Minimal API n'est même pas candidat. Avec `Content-Type: application/json` sans corps : `201` ; avec `{}` : `201` ; avec un booléen mal typé : `400`.
+
+**Décision et justification**
+Proposition rejetée dans sa forme : le corps devient **obligatoire** (`{}` = partie classique), plutôt que de lire le corps à la main pour contourner le routage (plus de code, et perte du `ValidationFilter<T>` générique). Tests, App et `.http` envoient désormais un corps JSON. Décision documentée dans `docs/adr/0009-options-de-partie.md`.
+
+**Preuves et limites**
+Suite complète verte après correction. Limite : la raison précise du rejet par le routage (politique de correspondance sur le type de contenu) est déduite du journal, pas confirmée dans le code source d'ASP.NET Core.

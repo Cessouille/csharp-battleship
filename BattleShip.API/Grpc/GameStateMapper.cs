@@ -10,22 +10,42 @@ namespace BattleShip.API.Grpc;
 /// </summary>
 public static class GameStateMapper
 {
-    public static GameStateReply ToGameStateReply(Game game)
+    public static GameStateReply ToGameStateReply(Game game) => ToGameStateReply(game.ToGameStateDto());
+
+    public static ScanZoneReply ToScanZoneReply(Game game, TurnResult turn)
     {
-        var myBoard = game.HumanBoard.ToMyBoardDto();
-        var opponentBoard = game.ComputerBoard.ToOpponentBoardDto();
-
-        var reply = new GameStateReply
+        var dto = game.ToTurnResultDto(turn);
+        var reply = new ScanZoneReply
         {
-            GameId = game.Id.ToString(),
-            Status = game.Status.ToString(),
-            Winner = game.Winner?.ToString() ?? string.Empty,
-            MyBoard = ToMyBoardMessage(myBoard),
-            OpponentBoard = ToOpponentBoardMessage(opponentBoard)
+            Scan = dto.PlayerScan is null ? null : ToScanMessage(dto.PlayerScan),
+            State = ToGameStateReply(game)
         };
-
+        reply.ComputerShots.AddRange(dto.ComputerShots.Select(ToShotResultMessage));
         return reply;
     }
+
+    private static GameStateReply ToGameStateReply(GameStateDto state) =>
+        new()
+        {
+            GameId = state.GameId.ToString(),
+            Status = state.Status,
+            Winner = state.Winner ?? string.Empty,
+            MyBoard = ToMyBoardMessage(state.MyBoard),
+            OpponentBoard = ToOpponentBoardMessage(state.OpponentBoard),
+            Options = new GameOptionsMessage
+            {
+                Radar = state.Options.Radar,
+                ShotMode = state.Options.ShotMode,
+                SpecialWeapons = state.Options.SpecialWeapons
+            },
+            Actions = new PlayerActionsMessage
+            {
+                ScansRemaining = state.Actions.ScansRemaining,
+                SalvoSize = state.Actions.SalvoSize,
+                Arsenal = ToArsenalMessage(state.Actions.Arsenal),
+                OpponentArsenal = ToArsenalMessage(state.Actions.OpponentArsenal)
+            }
+        };
 
     private static MyBoardMessage ToMyBoardMessage(MyBoardDto board)
     {
@@ -41,6 +61,7 @@ public static class GameStateMapper
         message.Hits.AddRange(board.Hits.Select(ToCoordinateMessage));
         message.Misses.AddRange(board.Misses.Select(ToCoordinateMessage));
         message.SunkShips.AddRange(board.SunkShips.Select(ToShipMessage));
+        message.Scans.AddRange(board.Scans.Select(ToScanMessage));
         return message;
     }
 
@@ -50,6 +71,20 @@ public static class GameStateMapper
         message.Cells.AddRange(ship.Cells.Select(ToCoordinateMessage));
         return message;
     }
+
+    private static ScanMessage ToScanMessage(ScanResultDto scan) =>
+        new() { Origin = ToCoordinateMessage(scan.Origin), ShipDetected = scan.ShipDetected };
+
+    private static ShotResultMessage ToShotResultMessage(ShotResultDto shot) =>
+        new()
+        {
+            Target = ToCoordinateMessage(shot.Target),
+            Outcome = shot.Outcome.ToString(),
+            SunkShipKind = shot.SunkShipKind ?? string.Empty
+        };
+
+    private static ArsenalMessage ToArsenalMessage(ArsenalDto arsenal) =>
+        new() { Torpedoes = arsenal.Torpedoes, AirStrikes = arsenal.AirStrikes };
 
     private static CoordinateMessage ToCoordinateMessage(CoordinateDto c) => new() { Row = c.Row, Column = c.Column };
 }

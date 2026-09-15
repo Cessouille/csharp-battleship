@@ -1,8 +1,23 @@
 @api = https://localhost:7186
 
-### Créer une nouvelle partie
+### Créer une partie classique (corps JSON obligatoire, {} = partie classique)
 POST {{api}}/api/games
+Content-Type: application/json
 Accept: application/json
+
+{}
+
+### Créer une partie avec radar (le scan lui-même passe par gRPC-Web : rpc ScanZone, voir Protos/battleship.proto)
+POST {{api}}/api/games
+Content-Type: application/json
+
+{ "radar": true }
+
+### Options mal typées -> 400
+POST {{api}}/api/games
+Content-Type: application/json
+
+{ "radar": "oui" }
 
 ### Lire l'état d'une partie (remplacer {{gameId}})
 @gameId = 00000000-0000-0000-0000-000000000000
@@ -26,3 +41,34 @@ POST {{api}}/api/games/{{gameId}}/shots
 Content-Type: application/json
 
 { "row": 0, "column": 0 }
+
+### Partie Salvo + armes spéciales
+POST {{api}}/api/games
+Content-Type: application/json
+
+{ "shotMode": "Salvo", "specialWeapons": true }
+
+### Salve : exactement un tir par navire à flot (5 au départ), sinon 409 WrongSalvoSize
+POST {{api}}/api/games/{{gameId}}/salvos
+Content-Type: application/json
+
+{ "shots": [ { "row": 5, "column": 0 }, { "row": 5, "column": 1 }, { "row": 5, "column": 2 }, { "row": 5, "column": 3 }, { "row": 5, "column": 4 } ] }
+
+### Salve avec doublon -> 400 ValidationProblem
+POST {{api}}/api/games/{{gameId}}/salvos
+Content-Type: application/json
+
+{ "shots": [ { "row": 6, "column": 0 }, { "row": 6, "column": 0 } ] }
+
+### Torpille depuis la gauche sur la ligne 3 (une seconde torpille -> 409 NoAmmoLeft)
+POST {{api}}/api/games/{{gameId}}/torpedoes
+Content-Type: application/json
+
+{ "from": "Left", "lane": 3 }
+
+### Frappe aérienne horizontale qui déborde -> 400
+POST {{api}}/api/games/{{gameId}}/airstrikes
+Content-Type: application/json
+
+{ "row": 0, "column": 8, "orientation": "Horizontal" }
+

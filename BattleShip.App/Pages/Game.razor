@@ -7,6 +7,7 @@
 @using BattleShip.App.Components
 @using BattleShip.App.Game
 @using BattleShip.Models.Contracts
+@using BattleShip.Models.Domain
 @using global::BattleShip.Grpc
 @using global::Grpc.Core
 
@@ -18,30 +19,43 @@
         Partie introuvable. <a href="/">Retour à l'accueil</a>.
     </div>
 }
-else if (_myBoard is null || _opponentBoard is null)
+else if (_state is null)
 {
     <p>Chargement…</p>
 }
 else
 {
-    <GameStatusBanner Status="@_status" Winner="@_winner" OnNewGame="GoHomeAsync" />
+    <GameStatusBanner Status="@_state.Status" Winner="@_state.Winner" Hint="@Hint" OnNewGame="GoHomeAsync" />
+
+    @if (_state.Status == "InProgress")
+    {
+        <ActionBar State="_state" Mode="_mode" ModeChanged="SetMode"
+                   @bind-TorpedoEdge="_torpedoEdge" @bind-StrikeOrientation="_strikeOrientation"
+                   SelectionCount="_selection.Count" Busy="_busy" FireSalvo="FireSalvoAsync" />
+    }
 
     @if (_moveError is not null)
     {
         <div class="alert alert-danger">@_moveError</div>
     }
 
+    @if (_turnSummary is not null)
+    {
+        <p class="small">@_turnSummary</p>
+    }
+
     <div class="row">
         <div class="col-auto">
             <h2 class="h5">Votre plateau</h2>
-            <BoardGrid Size="_myBoard.Size" Cells="_myBoard.ToGrid()" Interactive="false" />
-            <FleetLegend Ships="_myBoard.Ships" />
+            <BoardGrid Size="_state.MyBoard.Size" Cells="_state.MyBoard.ToGrid()" Interactive="false" />
+            <FleetLegend Ships="_state.MyBoard.Ships" />
         </div>
         <div class="col-auto">
             <h2 class="h5">Plateau adverse</h2>
-            <BoardGrid Size="_opponentBoard.Size" Cells="_opponentBoard.ToGrid()"
-                       Interactive="@(_status == "InProgress")" OnCellClick="PlayShotAsync" />
-            <FleetLegend Ships="_opponentBoard.SunkShips" />
+            <BoardGrid Size="_state.OpponentBoard.Size" Cells="_state.OpponentBoard.ToGrid()"
+                       Interactive="@(_state.Status == "InProgress" && !_busy)" CanClick="CanClick"
+                       Selected="_selection" OnCellClick="OnOpponentCellClickAsync" />
+            <FleetLegend Ships="_state.OpponentBoard.SunkShips" />
         </div>
     </div>
 }
@@ -49,12 +63,28 @@ else
 @code {
     [Parameter] public Guid GameId { get; set; }
 
-    private MyBoardDto? _myBoard;
-    private OpponentBoardDto? _opponentBoard;
-    private string _status = "InProgress";
-    private string? _winner;
+    private GameStateDto? _state;
+    private ActionMode _mode = ActionMode.Shot;
+    private Edge _torpedoEdge = Edge.Left;
+    private Orientation _strikeOrientation = Orientation.Horizontal;
+    private readonly HashSet<(int Row, int Column)> _selection = [];
     private bool _notFound;
+    private bool _busy;
     private string? _moveError;
+    private string? _turnSummary;
+
+    private bool IsSalvo => _state?.Options.ShotMode == nameof(ShotMode.Salvo);
+
+    private string Hint => _mode switch
+    {
+        ActionMode.Scan => "cliquez le coin haut-gauche de la zone 2×2 à scanner.",
+        ActionMode.Torpedo => _torpedoEdge is Edge.Left or Edge.Right
+            ? "cliquez une case de la ligne où lancer la torpille."
+            : "cliquez une case de la colonne où lancer la torpille.",
+        ActionMode.AirStrike => "cliquez la première des 3 cases de la frappe.",
+        _ when IsSalvo => $"sélectionnez {_state!.Actions.SalvoSize} cases puis tirez la salve.",
+        _ => "cliquez une case de la grille adverse pour tirer."
+    };
 
     protected override Task OnParametersSetAsync() => LoadStateAsync();
 
@@ -65,8 +95,7 @@ else
         {
             // Hydratation via gRPC-Web : c'est l'échange gRPC réellement utilisé par le jeu, pas une démo isolée.
             var reply = await GrpcClient.GetGameStateAsync(new GetGameStateRequest { GameId = GameId.ToString() });
-            ApplyState(reply.Status, string.IsNullOrEmpty(reply.Winner) ? null : reply.Winner,
-                reply.MyBoard.ToMyBoardDto(), reply.OpponentBoard.ToOpponentBoardDto());
+            _state = reply.ToGameStateDto();
         }
         catch (RpcException ex) when (ex.StatusCode == StatusCode.NotFound)
         {
@@ -74,25 +103,114 @@ else
         }
     }
 
-    private async Task PlayShotAsync((int Row, int Column) target)
+    private void SetMode(ActionMode mode)
+    {
+        _mode = mode;
+        _moveError = null;
+        _selection.Clear();
+    }
+
+    /// <summary>Filtre d'ergonomie seulement : la validation qui fait foi reste celle du serveur.</summary>
+    private bool CanClick(int row, int column, CellDisplayState state) => _mode switch
+    {
+        ActionMode.Scan => RadarRules.ZoneFits(new Coordinate(row, column)),
+        ActionMode.Torpedo => true,
+        ActionMode.AirStrike => WeaponRules.Cells(new WeaponAction.AirStrike(new Coordinate(row, column), _strikeOrientation)) is not null,
+        _ => state.IsUnplayed()
+    };
+
+    private async Task OnOpponentCellClickAsync((int Row, int Column) cell)
     {
         _moveError = null;
-        var response = await Http.PostAsJsonAsync($"api/games/{GameId}/shots", new ShotRequestDto(target.Row, target.Column));
 
+        if (_mode == ActionMode.Shot && IsSalvo)
+        {
+            // La salve n'est composée que côté client ; elle est envoyée d'un bloc et validée entièrement par le serveur.
+            if (!_selection.Remove(cell) && _selection.Count < _state!.Actions.SalvoSize)
+                _selection.Add(cell);
+            return;
+        }
+
+        await RunAsync(_mode switch
+        {
+            ActionMode.Scan => () => ScanAsync(cell),
+            ActionMode.Torpedo => () => PostTurnAsync("torpedoes",
+                new TorpedoRequestDto(_torpedoEdge.ToString(), _torpedoEdge is Edge.Left or Edge.Right ? cell.Row : cell.Column)),
+            ActionMode.AirStrike => () => PostTurnAsync("airstrikes",
+                new AirStrikeRequestDto(cell.Row, cell.Column, _strikeOrientation.ToString())),
+            _ => () => PostTurnAsync("shots", new ShotRequestDto(cell.Row, cell.Column))
+        });
+    }
+
+    private Task FireSalvoAsync() =>
+        RunAsync(() => PostTurnAsync("salvos", new SalvoRequestDto(_selection.Select(c => new ShotRequestDto(c.Row, c.Column)).ToList())));
+
+    /// <summary>Bloque la grille pendant l'appel : un double-clic ne doit pas envoyer deux coups.</summary>
+    private async Task RunAsync(Func<Task> action)
+    {
+        _busy = true;
+        try
+        {
+            await action();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    /// <summary>Le scan passe par gRPC-Web (docs/adr/0010-radar-grpc-web.md) ; la réponse porte l'état complet de la partie.</summary>
+    private async Task ScanAsync((int Row, int Column) origin)
+    {
+        try
+        {
+            var reply = await GrpcClient.ScanZoneAsync(new ScanZoneRequest
+            {
+                GameId = GameId.ToString(),
+                Row = origin.Row,
+                Column = origin.Column
+            });
+            _state = reply.State.ToGameStateDto();
+            _turnSummary = $"Scan : {(reply.Scan.ShipDetected ? "navire détecté" : "zone vide")}. {DescribeComputerTurn(reply.ComputerShots.Count, null)}";
+        }
+        catch (RpcException ex)
+        {
+            _moveError = ex.StatusCode == StatusCode.FailedPrecondition
+                ? $"{MoveErrorMessages.For(ex.Status.Detail)} (gRPC {ex.StatusCode})"
+                : $"Erreur gRPC-Web : {ex.StatusCode} — {ex.Status.Detail}";
+        }
+    }
+
+    private async Task PostTurnAsync<TRequest>(string action, TRequest request)
+    {
+        var response = await Http.PostAsJsonAsync($"api/games/{GameId}/{action}", request);
         switch (response.StatusCode)
         {
             case HttpStatusCode.OK:
                 var turn = await response.Content.ReadFromJsonAsync<TurnResultDto>();
                 if (turn is null)
+                {
                     _moveError = "Réponse du serveur inattendue (corps vide ou invalide).";
-                else
-                    ApplyState(turn.Status, turn.Winner, turn.MyBoard, turn.OpponentBoard);
+                    return;
+                }
+
+                _state = _state! with
+                {
+                    Status = turn.Status,
+                    Winner = turn.Winner,
+                    MyBoard = turn.MyBoard,
+                    OpponentBoard = turn.OpponentBoard,
+                    Actions = turn.Actions
+                };
+                _selection.Clear();
+                _turnSummary = DescribeComputerTurn(turn.ComputerShots.Count, turn.ComputerWeapon);
                 break;
             case HttpStatusCode.Conflict:
-                _moveError = "Coup invalide : case déjà jouée ou partie terminée.";
+                var conflict = await response.Content.ReadFromJsonAsync<ConflictBody>();
+                _moveError = MoveErrorMessages.For(conflict?.Code);
                 break;
             case HttpStatusCode.BadRequest:
-                _moveError = "Coordonnées hors grille.";
+                _moveError = "Requête refusée par la validation du serveur (coordonnées ou paramètres invalides).";
                 break;
             default:
                 _moveError = $"Erreur inattendue (HTTP {(int)response.StatusCode}).";
@@ -100,17 +218,19 @@ else
         }
     }
 
-    private void ApplyState(string status, string? winner, MyBoardDto myBoard, OpponentBoardDto opponentBoard)
+    private static string DescribeComputerTurn(int shots, string? weapon) => weapon switch
     {
-        _status = status;
-        _winner = winner;
-        _myBoard = myBoard;
-        _opponentBoard = opponentBoard;
-    }
+        nameof(WeaponKind.Torpedo) => "L'ordinateur a lancé sa torpille.",
+        nameof(WeaponKind.AirStrike) => "L'ordinateur a lancé sa frappe aérienne.",
+        _ when shots == 0 => "",
+        _ => $"L'ordinateur a tiré {shots} coup{(shots > 1 ? "s" : "")}."
+    };
 
     private Task GoHomeAsync()
     {
         Navigation.NavigateTo("/");
         return Task.CompletedTask;
     }
+
+    private sealed record ConflictBody(string? Code);
 }

@@ -4,9 +4,11 @@ public sealed class Board
 {
     private readonly List<Ship> _ships = [];
     private readonly HashSet<Coordinate> _shotsReceived = [];
+    private readonly List<ScanResult> _scansReceived = [];
 
     public IReadOnlyList<Ship> Ships => _ships;
     public IReadOnlyCollection<Coordinate> ShotsReceived => _shotsReceived;
+    public IReadOnlyList<ScanResult> ScansReceived => _scansReceived;
     public bool AllSunk => _ships.Count > 0 && _ships.All(s => s.IsSunk);
 
     public bool IsOccupied(Coordinate c) => _ships.Any(s => s.Occupies(c));
@@ -40,6 +42,39 @@ public sealed class Board
     }
 
     public bool IsValidTarget(Coordinate c) => BoardGrid.Contains(c) && !_shotsReceived.Contains(c);
+
+    /// <summary>Enregistre un scan radar : ne marque aucune case comme jouée et ne touche aucun navire.</summary>
+    public ScanResult ReceiveScan(Coordinate origin)
+    {
+        var scan = new ScanResult(origin, RadarRules.ZoneCells(origin).Any(IsOccupied));
+        _scansReceived.Add(scan);
+        return scan;
+    }
+
+    /// <summary>
+    /// Résout une arme case par case avec <see cref="ReceiveShot"/> : les cases déjà jouées sont traversées sans
+    /// effet, la torpille s'arrête sur le premier navire touché, et tout s'arrête dès que la flotte est coulée.
+    /// Suppose l'action déjà validée par Game (arme dans la grille, au moins une case non jouée).
+    /// </summary>
+    public IReadOnlyList<ShotResolution> ReceiveWeapon(WeaponAction action)
+    {
+        var cells = WeaponRules.Cells(action)
+            ?? throw new InvalidOperationException($"Arme hors grille : {action}.");
+
+        var resolutions = new List<ShotResolution>();
+        foreach (var cell in cells)
+        {
+            if (!IsValidTarget(cell))
+                continue;
+
+            var resolution = ReceiveShot(cell);
+            resolutions.Add(resolution);
+            if (AllSunk || (action is WeaponAction.Torpedo && resolution.Outcome != ShotOutcome.Miss))
+                break;
+        }
+
+        return resolutions;
+    }
 
     public ShotResolution ReceiveShot(Coordinate target)
     {

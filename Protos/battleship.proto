@@ -4,6 +4,8 @@ package battleship;
 
 service Battleship {
   rpc GetGameState (GetGameStateRequest) returns (GameStateReply);
+  // Action mutante : consomme un scan et le tour du joueur (voir docs/adr/0010-radar-grpc-web.md).
+  rpc ScanZone (ScanZoneRequest) returns (ScanZoneReply);
 }
 
 message GetGameStateRequest {
@@ -27,11 +29,35 @@ message MyBoardMessage {
   repeated CoordinateMessage cells_hit_by_opponent = 3;
 }
 
+message ScanMessage {
+  CoordinateMessage origin = 1; // coin haut-gauche de la zone 2x2
+  bool ship_detected = 2;
+}
+
 message OpponentBoardMessage {
   int32 size = 1;
   repeated CoordinateMessage hits = 2;
   repeated CoordinateMessage misses = 3;
   repeated ShipMessage sunk_ships = 4;
+  repeated ScanMessage scans = 5;
+}
+
+message GameOptionsMessage {
+  bool radar = 1;
+  string shot_mode = 2; // "Classic" | "Salvo"
+  bool special_weapons = 3;
+}
+
+message ArsenalMessage {
+  int32 torpedoes = 1;
+  int32 air_strikes = 2;
+}
+
+message PlayerActionsMessage {
+  int32 scans_remaining = 1;
+  int32 salvo_size = 2; // tirs exigés au prochain tour (1 en classique)
+  ArsenalMessage arsenal = 3;
+  ArsenalMessage opponent_arsenal = 4;
 }
 
 message GameStateReply {
@@ -40,4 +66,24 @@ message GameStateReply {
   string winner = 3;   // "" si aucun
   MyBoardMessage my_board = 4;
   OpponentBoardMessage opponent_board = 5;
+  GameOptionsMessage options = 6;
+  PlayerActionsMessage actions = 7;
+}
+
+message ScanZoneRequest {
+  string game_id = 1;
+  int32 row = 2;    // coin haut-gauche de la zone
+  int32 column = 3;
+}
+
+message ShotResultMessage {
+  CoordinateMessage target = 1;
+  string outcome = 2;         // "Miss" | "Hit" | "Sunk"
+  string sunk_ship_kind = 3;  // "" si aucun
+}
+
+message ScanZoneReply {
+  ScanMessage scan = 1;
+  repeated ShotResultMessage computer_shots = 2;
+  GameStateReply state = 3;
 }

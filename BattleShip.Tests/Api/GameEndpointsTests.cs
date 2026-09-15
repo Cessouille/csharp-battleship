@@ -11,17 +11,12 @@ public class GameEndpointsTests(WebApplicationFactory<Program> factory) : IClass
 {
     private readonly HttpClient _client = factory.CreateClient();
 
-    private async Task<CreateGameResponseDto> CreateGameAsync()
-    {
-        var response = await _client.PostAsync("/api/games", null);
-        response.EnsureSuccessStatusCode();
-        return (await response.Content.ReadFromJsonAsync<CreateGameResponseDto>())!;
-    }
+    private Task<CreateGameResponseDto> CreateGameAsync() => _client.CreateGameAsync();
 
     [Fact]
     public async Task PostGames_Returns201_WithBothBoardViews()
     {
-        var response = await _client.PostAsync("/api/games", null);
+        var response = await _client.PostAsJsonAsync("/api/games", new CreateGameRequestDto());
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<CreateGameResponseDto>();
@@ -30,6 +25,36 @@ public class GameEndpointsTests(WebApplicationFactory<Program> factory) : IClass
         Assert.Empty(body.OpponentBoard.Hits);
         Assert.Empty(body.OpponentBoard.Misses);
         Assert.Empty(body.OpponentBoard.SunkShips);
+    }
+
+    [Fact]
+    public async Task PostGames_WithEmptyJsonObject_CreatesClassicGame()
+    {
+        var game = await _client.CreateGameAsync(new CreateGameRequestDto());
+
+        Assert.False(game.Options.Radar);
+        Assert.Equal(0, game.Actions.ScansRemaining);
+    }
+
+    [Fact]
+    public async Task PostGames_WithRadar_ReturnsOptionsAndScanQuota()
+    {
+        var game = await _client.CreateGameAsync(new CreateGameRequestDto(Radar: true));
+
+        Assert.True(game.Options.Radar);
+        Assert.Equal(RadarRules.ScansPerGame, game.Actions.ScansRemaining);
+        var state = await _client.GetFromJsonAsync<GameStateDto>($"/api/games/{game.GameId}");
+        Assert.Equal(game.Options, state!.Options);
+    }
+
+    [Fact]
+    public async Task PostGames_WithMalformedOptions_Returns400()
+    {
+        using var body = new StringContent("""{ "radar": "oui" }""", System.Text.Encoding.UTF8, "application/json");
+
+        var response = await _client.PostAsync("/api/games", body);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     [Fact]
@@ -42,8 +67,9 @@ public class GameEndpointsTests(WebApplicationFactory<Program> factory) : IClass
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<TurnResultDto>();
         Assert.NotNull(body);
-        Assert.Equal(0, body!.PlayerShot.Target.Row);
-        Assert.Equal(0, body.PlayerShot.Target.Column);
+        var playerShot = Assert.Single(body!.PlayerShots);
+        Assert.Equal(0, playerShot.Target.Row);
+        Assert.Equal(0, playerShot.Target.Column);
     }
 
     [Fact]

@@ -9,11 +9,12 @@
 }
 else
 {
-    <div class="alert alert-info">Partie en cours — cliquez une case de la grille adverse pour tirer.</div>
+    <div class="alert alert-info">Partie en cours — @Hint</div>
 }
 
 @code {
     [Parameter, EditorRequired] public string Status { get; set; } = "InProgress";
     [Parameter] public string? Winner { get; set; }
     [Parameter] public EventCallback OnNewGame { get; set; }
+    [Parameter] public string Hint { get; set; } = "cliquez une case de la grille adverse pour tirer.";
 }

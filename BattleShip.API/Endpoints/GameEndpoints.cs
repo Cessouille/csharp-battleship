@@ -11,11 +11,13 @@ public static class GameEndpoints
     {
         var group = app.MapGroup("/api/games");
 
-        group.MapPost("", (InMemoryGameStore store) =>
+        // Corps JSON obligatoire ({} = partie classique) : une requête sans Content-Type JSON n'est pas routée vers
+        // cet endpoint par ASP.NET Core, même avec un paramètre nullable (vérifié, voir REVUE-IA.md).
+        group.MapPost("", (CreateGameRequestDto request, InMemoryGameStore store) =>
         {
-            var game = store.Create();
+            var game = store.Create(request.ToGameOptions());
             return game.Locked(() => Results.Created($"/api/games/{game.Id}", game.ToCreateGameResponseDto()));
-        });
+        }).AddEndpointFilter<ValidationFilter<CreateGameRequestDto>>();
 
         group.MapGet("/{gameId:guid}", (Guid gameId, InMemoryGameStore store) =>
             store.Find(gameId) is { } game
@@ -31,18 +33,43 @@ public static class GameEndpoints
             // PlayHumanShot verrouille déjà à lui seul, mais Locked est réentrant : ce bloc englobe aussi le
             // mapping DTO qui suit, pour qu'aucune autre requête sur ce gameId ne s'intercale entre le tir et
             // la lecture de son résultat.
-            return game.Locked(() =>
-            {
-                var result = game.PlayHumanShot(new Coordinate(request.Row, request.Column));
-                return result switch
-                {
-                    MoveResult.Accepted accepted => Results.Ok(game.ToTurnResultDto(accepted.Turn)),
-                    MoveResult.Rejected rejected => ToConflict(rejected.Reason),
-                    _ => Results.Problem("Résultat de coup inattendu.")
-                };
-            });
+            return game.Locked(() => ToTurnResponse(game, game.PlayHumanShot(new Coordinate(request.Row, request.Column))));
         }).AddEndpointFilter<ValidationFilter<ShotRequestDto>>();
+
+        group.MapPost("/{gameId:guid}/salvos", (Guid gameId, SalvoRequestDto request, InMemoryGameStore store) =>
+        {
+            var game = store.Find(gameId);
+            if (game is null)
+                return Results.NotFound();
+
+            var targets = request.Shots.Select(s => new Coordinate(s.Row, s.Column)).ToList();
+            return game.Locked(() => ToTurnResponse(game, game.PlayHumanSalvo(targets)));
+        }).AddEndpointFilter<ValidationFilter<SalvoRequestDto>>();
+
+        group.MapPost("/{gameId:guid}/torpedoes", (Guid gameId, TorpedoRequestDto request, InMemoryGameStore store) =>
+            PlayWeapon(store, gameId, request.ToWeaponAction()))
+            .AddEndpointFilter<ValidationFilter<TorpedoRequestDto>>();
+
+        group.MapPost("/{gameId:guid}/airstrikes", (Guid gameId, AirStrikeRequestDto request, InMemoryGameStore store) =>
+            PlayWeapon(store, gameId, request.ToWeaponAction()))
+            .AddEndpointFilter<ValidationFilter<AirStrikeRequestDto>>();
     }
+
+    private static IResult PlayWeapon(InMemoryGameStore store, Guid gameId, WeaponAction action)
+    {
+        var game = store.Find(gameId);
+        return game is null
+            ? Results.NotFound()
+            : game.Locked(() => ToTurnResponse(game, game.PlayHumanWeapon(action)));
+    }
+
+    private static IResult ToTurnResponse(Game game, MoveResult result) =>
+        result switch
+        {
+            MoveResult.Accepted accepted => Results.Ok(game.ToTurnResultDto(accepted.Turn)),
+            MoveResult.Rejected rejected => ToConflict(rejected.Reason),
+            _ => Results.Problem("Résultat de coup inattendu.")
+        };
 
     private static IResult ToConflict(MoveRejectionReason reason) =>
         // OutOfGrid est déjà rejeté en amont par FluentValidation ; le contrôle refait dans Game.PlayHumanShot

@@ -45,3 +45,37 @@
 **Vérification** : `dotnet build`/`dotnet test`/`dotnet format --verify-no-changes` relancés après chaque correctif (43/43 tests au final, 0 avertissement). Pour le correctif de concurrence spécifiquement, voir la revue dédiée ci-dessous.
 
 **Preuve** : commits `250aa6c` à `2d205b3`.
+
+---
+
+## 2026-09-15 — Réalignement du backlog d'extensions
+
+**Outil / modèle** : Claude Code (Opus 5), en mode planification.
+**Contexte** : `docs/ticket.md` avait été rédigé à partir d'une recherche web sur les variantes de bataille navale, sans confrontation systématique au code. Avant d'en implémenter un seul, il fallait vérifier que ses hypothèses techniques tenaient et faire trancher les règles de jeu restées implicites.
+**Prompt** : « dans ticket.md, il y a une liste d'idées de features […] ces tickets ne sont pas totalement alignés avec le code actuel. Adapter les tickets au code actuel et planifier leur implémentation. »
+
+**Réponse résumée** : relecture du domaine, des endpoints, du proto, de l'App et des ADR, puis relevé d'écarts concrets : DTO `PlayShot` inexistant (le tir passe par `ShotRequestDto` sur `/shots`), ADR 0007 oubliée, nom de test erroné, `POST /api/games` sans corps (aucune option de partie possible), `ScanZone` présenté comme non mutant alors qu'il consomme un quota, affirmation « pas d'ADR obligatoire » pour l'IA contraire à `CLAUDE.md`, et surtout `PickComputerTarget` qui reçoit le plateau humain avec les positions des navires — une IA plus élaborée pourrait tricher sans que rien ne l'en empêche structurellement. Quatre questions de règle posées au lieu d'être tranchées seules.
+
+**Décision** : ordre 03 → 02 → 01 → 04 (plus un ticket prérequis « options de partie ») ; modes activés par options à la création, classique par défaut ; Salvo symétrique pour l'ordinateur ; le scan radar consomme le tour. Les recommandations proposées ont toutes été retenues par l'utilisateur. Proposition acceptée de n'alimenter l'IA qu'avec `OpponentBoardDto` (réutilisation du chokepoint anti-fuite existant). Les points de règle plus fins (taille de zone radar, munitions, fin de partie au milieu d'une salve…) restent consignés comme ouverts, à trancher au début de chaque ticket. Détail dans `docs/ticket.md`, non recopié ici.
+
+**Vérification** : chaque écart a été confronté au fichier concerné (`Game.cs`, `Dtos.cs`, `GameEndpoints.cs`, `battleship.proto`, `Home.razor`, `GameTests.cs`, ADR 0004/0005/0007) avant d'être inscrit dans le ticket. Aucun code modifié à ce stade : la vérification des choix techniques eux-mêmes se fera par les tests listés dans chaque ticket.
+
+**Suite — planification de l'implémentation** : lors d'une seconde passe de planification, huit points de règle restés ouverts ont été soumis au binôme plutôt que décidés par l'IA (zone et quota du radar, radar de l'ordinateur, taille et fin de salve, munitions, torpille sur cases jouées, armes de l'ordinateur, combinaison armes/Salvo). Les recommandations proposées ont toutes été retenues ; la règle de la frappe aérienne sur cases déjà jouées n'a pas été posée explicitement et a été déduite de celle de la torpille — signalée comme telle, à confirmer. Deux choix de conception en ont découlé : n'introduire chaque option de partie qu'avec la règle qui lui donne un effet, et passer `TurnResult` en listes dès le radar pour ne faire qu'une seule refonte. Règles actées dans `docs/ticket.md`.
+
+**Preuve** : `docs/ticket.md` (version réalignée, puis règles actées).
+
+---
+
+## 2026-09-15 — Implémentation des tickets 03, 00, 02, 01 et 04
+
+**Outil / modèle** : Claude Code (Opus 5).
+**Contexte** : exécution du plan validé (règles actées dans `docs/ticket.md`).
+**Prompt** : « Implémenter les 4 étapes. »
+
+**Réponse résumée** : implémentation étape par étape avec tests. Plusieurs choix de conception proposés par l'IA en cours de route : n'alimenter l'IA qu'avec `OpponentBoardDto` (ADR 0008) ; valider une salve entière avant tout tir, via une fonction commune au joueur et à l'ordinateur (ADR 0011) ; faire choisir les N cibles de l'ordinateur sur une même vue (ADR 0011) ; exprimer une arme comme une liste de cases résolues par le `ReceiveShot` existant (ADR 0012). Une hypothèse du plan s'est révélée fausse : le corps facultatif sur `POST /api/games`.
+
+**Décision** : choix de conception consignés dans les ADR 0008 à 0012, sans les recopier ici. Corps de création rendu obligatoire (`{}` = partie classique).
+
+**Vérification** : 133 tests verts, `dotnet format --verify-no-changes` propre. Règles clés neutralisées une à une (anti-triche IA, tailles des navires coulés, quota radar, validation atomique de salve, munitions) : chaque neutralisation fait échouer au moins un test (voir `REVUE-IA.md`, ADR 0010 à 0012). Vérification dans le navigateur **non effectuée** : le certificat HTTPS de développement n'était pas approuvé par le navigateur utilisé.
+
+**Preuve** : `BattleShip.Tests/Engine/{ProbabilityTargeting,Radar,Salvo,Weapon}Tests.cs`, `BattleShip.Tests/Api/{GrpcScanZone,SalvoEndpoints,WeaponEndpoints}Tests.cs`.

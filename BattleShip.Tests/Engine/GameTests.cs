@@ -64,8 +64,8 @@ public class GameTests
         var result = game.PlayHumanShot(new Coordinate(9, 9));
 
         var accepted = Assert.IsType<MoveResult.Accepted>(result);
-        Assert.Equal(ShotOutcome.Sunk, accepted.Turn.PlayerShot.Outcome);
-        Assert.Null(accepted.Turn.ComputerShot);
+        Assert.Equal(ShotOutcome.Sunk, Assert.Single(accepted.Turn.PlayerShots).Outcome);
+        Assert.Empty(accepted.Turn.ComputerShots);
         Assert.Equal(PlayerId.Human, accepted.Turn.Winner);
         Assert.Equal(GameStatus.Finished, accepted.Turn.Status);
         Assert.Equal(GameStatus.Finished, game.Status);
@@ -79,8 +79,8 @@ public class GameTests
         var result = game.PlayHumanShot(new Coordinate(0, 1)); // manque le navire adverse en (9,9)
 
         var accepted = Assert.IsType<MoveResult.Accepted>(result);
-        Assert.Equal(ShotOutcome.Miss, accepted.Turn.PlayerShot.Outcome);
-        Assert.NotNull(accepted.Turn.ComputerShot);
+        Assert.Equal(ShotOutcome.Miss, Assert.Single(accepted.Turn.PlayerShots).Outcome);
+        Assert.Single(accepted.Turn.ComputerShots);
         Assert.Equal(GameStatus.InProgress, accepted.Turn.Status);
     }
 
@@ -110,6 +110,59 @@ public class GameTests
     }
 
     [Fact]
+    public void ComputerShot_UsesInjectedStrategy()
+    {
+        var human = new Board();
+        human.TryPlaceShip(ShipKind.Torpilleur, new Coordinate(0, 0), Orientation.Horizontal, 1);
+        var computer = new Board();
+        computer.TryPlaceShip(ShipKind.Torpilleur, new Coordinate(9, 9), Orientation.Horizontal, 1);
+        var game = new Game(Guid.NewGuid(), human, computer, targeting: new FixedTargeting(new Coordinate(3, 3)));
+
+        var result = game.PlayHumanShot(new Coordinate(0, 1));
+
+        var accepted = Assert.IsType<MoveResult.Accepted>(result);
+        Assert.Equal(new Coordinate(3, 3), Assert.Single(accepted.Turn.ComputerShots).Target);
+    }
+
+    [Fact]
+    public void ComputerShot_InvalidTargetFromStrategy_Throws()
+    {
+        var human = new Board();
+        human.TryPlaceShip(ShipKind.Torpilleur, new Coordinate(0, 0), Orientation.Horizontal, 1);
+        var computer = new Board();
+        computer.TryPlaceShip(ShipKind.Torpilleur, new Coordinate(9, 9), Orientation.Horizontal, 1);
+        var game = new Game(Guid.NewGuid(), human, computer, targeting: new FixedTargeting(new Coordinate(-1, 0)));
+
+        Assert.Throws<InvalidOperationException>(() => game.PlayHumanShot(new Coordinate(0, 1)));
+        Assert.Empty(game.HumanBoard.ShotsReceived);
+    }
+
+    [Fact]
+    public void ComputerShot_SameVisibleHistory_DifferentHiddenFleets_SameTarget()
+    {
+        // Même historique visible sur le plateau humain (une touche en (5,5), un raté en (0,0)) mais navires
+        // cachés placés différemment : si l'IA lisait les vraies positions, les deux cibles pourraient diverger.
+        Coordinate CounterShotTarget(Orientation hiddenOrientation, Coordinate hiddenOrigin)
+        {
+            var human = new Board();
+            human.TryPlaceShip(ShipKind.Croiseur, hiddenOrigin, hiddenOrientation, 4);
+            human.ReceiveShot(new Coordinate(5, 5));
+            human.ReceiveShot(new Coordinate(0, 0));
+            var computer = new Board();
+            computer.TryPlaceShip(ShipKind.Torpilleur, new Coordinate(9, 9), Orientation.Horizontal, 1);
+            var game = new Game(Guid.NewGuid(), human, computer, rng: new Random(5));
+
+            var accepted = Assert.IsType<MoveResult.Accepted>(game.PlayHumanShot(new Coordinate(0, 1)));
+            return Assert.Single(accepted.Turn.ComputerShots).Target;
+        }
+
+        var horizontal = CounterShotTarget(Orientation.Horizontal, new Coordinate(5, 5));
+        var vertical = CounterShotTarget(Orientation.Vertical, new Coordinate(5, 5));
+
+        Assert.Equal(horizontal, vertical);
+    }
+
+    [Fact]
     public void ComputerAutoShot_OnlyTargetsUntriedCellsOnHumanBoard_AcrossFullGame()
     {
         var rng = new Random(42);
@@ -125,8 +178,8 @@ public class GameTests
                     continue;
 
                 var result = game.PlayHumanShot(target);
-                if (result is MoveResult.Accepted { Turn.ComputerShot: { } computerShot })
-                    computerTargets.Add(computerShot.Target);
+                if (result is MoveResult.Accepted accepted)
+                    computerTargets.AddRange(accepted.Turn.ComputerShots.Select(s => s.Target));
             }
         }
 

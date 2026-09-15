@@ -3,6 +3,7 @@
 @inject NavigationManager Navigation
 @using System.Net.Http.Json
 @using BattleShip.Models.Contracts
+@using BattleShip.Models.Domain
 
 <PageTitle>Bataille Navale</PageTitle>
 
@@ -10,8 +11,31 @@
 
 <p>
     Grille 10×10, flotte classique (porte-avions, croiseur, contre-torpilleur, sous-marin, torpilleur) placée
-    aléatoirement. Vous affrontez un ordinateur qui tire au hasard sur les cases que vous n'avez pas encore jouées.
+    aléatoirement. Vous affrontez un ordinateur qui cible les cases les plus probables d'après ce qu'il a déjà
+    découvert de votre flotte.
 </p>
+
+<fieldset class="mb-3">
+    <legend class="h6">Options de la partie</legend>
+    <div class="form-check">
+        <input class="form-check-input" type="checkbox" id="option-salvo" @bind="_salvo" />
+        <label class="form-check-label" for="option-salvo">
+            Salvo : chaque tour, autant de tirs que de navires encore à flot (vaut aussi pour l'ordinateur)
+        </label>
+    </div>
+    <div class="form-check">
+        <input class="form-check-input" type="checkbox" id="option-weapons" @bind="_weapons" />
+        <label class="form-check-label" for="option-weapons">
+            Armes spéciales : @WeaponRules.TorpedoesPerGame torpille et @WeaponRules.AirStrikesPerGame frappe aérienne de @WeaponRules.AirStrikeLength cases par camp, chacune à la place d'un tour
+        </label>
+    </div>
+    <div class="form-check">
+        <input class="form-check-input" type="checkbox" id="option-radar" @bind="_radar" />
+        <label class="form-check-label" for="option-radar">
+            Radar : @RadarRules.ScansPerGame scans d'une zone @(RadarRules.ZoneSize)×@(RadarRules.ZoneSize), chacun à la place d'un tir
+        </label>
+    </div>
+</fieldset>
 
 <button type="button" class="btn btn-primary" @onclick="StartNewGameAsync" disabled="@_starting">
     @(_starting ? "Création…" : "Nouvelle partie")
@@ -24,6 +48,9 @@
 
 @code {
     private bool _starting;
+    private bool _radar;
+    private bool _salvo;
+    private bool _weapons;
     private string? _error;
 
     private async Task StartNewGameAsync()
@@ -32,7 +59,10 @@
         _error = null;
         try
         {
-            var response = await Http.PostAsync("api/games", null);
+            var response = await Http.PostAsJsonAsync("api/games", new CreateGameRequestDto(
+                Radar: _radar,
+                ShotMode: (_salvo ? ShotMode.Salvo : ShotMode.Classic).ToString(),
+                SpecialWeapons: _weapons));
             if (!response.IsSuccessStatusCode)
             {
                 _error = $"La création de la partie a échoué (HTTP {(int)response.StatusCode}).";

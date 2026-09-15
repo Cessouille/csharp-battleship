@@ -9,11 +9,13 @@
         {
             var c = column;
             var state = Cells[r, c];
-            var interactive = Interactive && state is CellDisplayState.Empty or CellDisplayState.Ship;
+            var interactive = Interactive && (CanClick?.Invoke(r, c, state) ?? state.IsUnplayed());
+            var selected = Selected?.Contains((r, c)) == true;
             <button type="button"
-                    class="board-cell cell-@state.ToString().ToLowerInvariant() @(interactive ? "interactive" : "")"
+                    class="board-cell cell-@state.ToString().ToLowerInvariant() @(interactive ? "interactive" : "") @(selected ? "selected" : "")"
                     disabled="@(!interactive)"
                     aria-label="Case ligne @r colonne @c"
+                    aria-pressed="@(selected ? "true" : null)"
                     @onclick="() => OnCellClick.InvokeAsync((r, c))">
             </button>
         }
@@ -24,5 +26,10 @@
     [Parameter, EditorRequired] public int Size { get; set; }
     [Parameter, EditorRequired] public CellDisplayState[,] Cells { get; set; } = new CellDisplayState[0, 0];
     [Parameter] public bool Interactive { get; set; }
+
+    /// <summary>Filtre de clic propre au mode d'action courant ; par défaut, seules les cases jamais tirées sont cliquables.</summary>
+    [Parameter] public Func<int, int, CellDisplayState, bool>? CanClick { get; set; }
+
+    [Parameter] public IReadOnlySet<(int Row, int Column)>? Selected { get; set; }
     [Parameter] public EventCallback<(int Row, int Column)> OnCellClick { get; set; }
 }

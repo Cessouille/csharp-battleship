@@ -12,9 +12,9 @@ public sealed class InMemoryGameStore
 {
     private readonly ConcurrentDictionary<Guid, Game> _games = new();
 
-    public Game Create()
+    public Game Create(GameOptions options)
     {
-        var game = Game.CreateRandom(Guid.NewGuid(), Random.Shared);
+        var game = Game.CreateRandom(Guid.NewGuid(), Random.Shared, options);
         _games[game.Id] = game;
         return game;
     }

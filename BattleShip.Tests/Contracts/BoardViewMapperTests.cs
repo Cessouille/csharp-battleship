@@ -50,4 +50,21 @@ public class BoardViewMapperTests
         Assert.Equal(Fleet.Standard.Count, dto.Ships.Count);
         Assert.All(dto.Ships, s => Assert.NotEmpty(s.Cells));
     }
+
+    [Fact]
+    public void ToOpponentBoardDto_ScanOverShip_RevealsOnlyPresence_NoShipCell()
+    {
+        var board = new Board();
+        board.TryPlaceShip(ShipKind.Torpilleur, new Coordinate(0, 0), Orientation.Horizontal, 2);
+
+        board.ReceiveScan(new Coordinate(0, 0));
+        var dto = board.ToOpponentBoardDto();
+
+        Assert.Empty(dto.Hits);
+        Assert.Empty(dto.Misses);
+        Assert.Empty(dto.SunkShips);
+        var scan = Assert.Single(dto.Scans);
+        Assert.True(scan.ShipDetected);
+        Assert.Equal(new CoordinateDto(0, 0), scan.Origin);
+    }
 }

@@ -1,4 +1,5 @@
 using BattleShip.Models.Contracts;
+using BattleShip.Models.Domain;
 
 namespace BattleShip.App.Game;
 
@@ -9,7 +10,9 @@ public enum CellDisplayState
     Ship,
     Hit,
     Miss,
-    Sunk
+    Sunk,
+    ScannedDetected,
+    ScannedClear
 }
 
 public static class BoardViewModel
@@ -42,6 +45,14 @@ public static class BoardViewModel
     {
         var grid = new CellDisplayState[board.Size, board.Size];
 
+        // Les zones scannées sont posées en premier : un tir ultérieur sur l'une de leurs cases prend le dessus.
+        // Une zone « vide » garantit l'absence de navire sur chacune de ses cases, alors qu'une zone « détectée »
+        // ne dit pas laquelle est occupée : en cas de chevauchement, l'information « vide » l'emporte.
+        foreach (var scan in board.Scans)
+            foreach (var cell in RadarRules.ZoneCells(new Coordinate(scan.Origin.Row, scan.Origin.Column)))
+                if (grid[cell.Row, cell.Column] != CellDisplayState.ScannedClear)
+                    grid[cell.Row, cell.Column] = scan.ShipDetected ? CellDisplayState.ScannedDetected : CellDisplayState.ScannedClear;
+
         foreach (var c in board.Misses)
             grid[c.Row, c.Column] = CellDisplayState.Miss;
 
@@ -54,4 +65,8 @@ public static class BoardViewModel
 
         return grid;
     }
+
+    /// <summary>Case encore jamais tirée (éventuellement scannée) : seule cible possible pour un tir.</summary>
+    public static bool IsUnplayed(this CellDisplayState state) =>
+        state is CellDisplayState.Empty or CellDisplayState.Ship or CellDisplayState.ScannedDetected or CellDisplayState.ScannedClear;
 }

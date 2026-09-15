@@ -2,7 +2,7 @@
 
 ## Statut et date
 
-Accepté — 2026-09-15.
+Remplacé par `docs/adr/0008-ia-grille-probabilite.md` — accepté le 2026-09-15.
 
 ## Contexte
 

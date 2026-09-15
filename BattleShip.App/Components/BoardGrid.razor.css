@@ -41,3 +41,16 @@
 .cell-sunk {
     background-color: #dc3545;
 }
+
+.cell-scanneddetected {
+    background-color: #f7d794;
+}
+
+.cell-scannedclear {
+    background-color: #c8e6c9;
+}
+
+.board-cell.selected {
+    outline: 3px solid #1b6ec2;
+    outline-offset: -3px;
+}

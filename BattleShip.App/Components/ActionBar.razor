@@ -1,0 +1,81 @@
+@namespace BattleShip.App.Components
+@using BattleShip.App.Game
+@using BattleShip.Models.Contracts
+@using BattleShip.Models.Domain
+
+@* Les actions restent sélectionnables même sans munition ni scan : c'est le serveur qui refuse, et ce refus est une erreur attendue démontrable. *@
+<div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+    <div class="btn-group flex-wrap" role="group" aria-label="Action du tour">
+        @RadioButton(ActionMode.Shot, IsSalvo ? $"Salve ({State.Actions.SalvoSize} tirs)" : "Tirer")
+        @if (State.Options.Radar)
+        {
+            @RadioButton(ActionMode.Scan, $"Scanner 2×2 ({State.Actions.ScansRemaining})")
+        }
+        @if (State.Options.SpecialWeapons)
+        {
+            @RadioButton(ActionMode.Torpedo, $"Torpille ({State.Actions.Arsenal.Torpedoes})")
+            @RadioButton(ActionMode.AirStrike, $"Frappe aérienne ({State.Actions.Arsenal.AirStrikes})")
+        }
+    </div>
+
+    @if (Mode == ActionMode.Torpedo)
+    {
+        <label class="d-flex align-items-center gap-1">
+            depuis
+            <select class="form-select form-select-sm w-auto" value="@TorpedoEdge" @onchange="e => TorpedoEdgeChanged.InvokeAsync(Enum.Parse<Edge>((string)e.Value!))">
+                <option value="@Edge.Left">la gauche</option>
+                <option value="@Edge.Right">la droite</option>
+                <option value="@Edge.Top">le haut</option>
+                <option value="@Edge.Bottom">le bas</option>
+            </select>
+        </label>
+    }
+
+    @if (Mode == ActionMode.AirStrike)
+    {
+        <label class="d-flex align-items-center gap-1">
+            orientation
+            <select class="form-select form-select-sm w-auto" value="@StrikeOrientation" @onchange="e => StrikeOrientationChanged.InvokeAsync(Enum.Parse<Orientation>((string)e.Value!))">
+                <option value="@Orientation.Horizontal">horizontale</option>
+                <option value="@Orientation.Vertical">verticale</option>
+            </select>
+        </label>
+    }
+
+    @if (Mode == ActionMode.Shot && IsSalvo)
+    {
+        <button type="button" class="btn btn-danger" disabled="@(SelectionCount != State.Actions.SalvoSize || Busy)" @onclick="FireSalvo">
+            Tirer la salve (@SelectionCount/@State.Actions.SalvoSize)
+        </button>
+    }
+</div>
+
+@if (State.Options.SpecialWeapons)
+{
+    <p class="small text-muted">
+        Munitions de l'ordinateur : @State.Actions.OpponentArsenal.Torpedoes torpille, @State.Actions.OpponentArsenal.AirStrikes frappe.
+    </p>
+}
+
+@code {
+    [Parameter, EditorRequired] public GameStateDto State { get; set; } = default!;
+    [Parameter] public ActionMode Mode { get; set; }
+    [Parameter] public EventCallback<ActionMode> ModeChanged { get; set; }
+    [Parameter] public Edge TorpedoEdge { get; set; }
+    [Parameter] public EventCallback<Edge> TorpedoEdgeChanged { get; set; }
+    [Parameter] public Orientation StrikeOrientation { get; set; }
+    [Parameter] public EventCallback<Orientation> StrikeOrientationChanged { get; set; }
+    [Parameter] public int SelectionCount { get; set; }
+    [Parameter] public bool Busy { get; set; }
+    [Parameter] public EventCallback FireSalvo { get; set; }
+
+    private bool IsSalvo => State.Options.ShotMode == nameof(ShotMode.Salvo);
+
+    private RenderFragment RadioButton(ActionMode mode, string label) => __builder =>
+    {
+        var id = $"mode-{mode.ToString().ToLowerInvariant()}";
+        <input type="radio" class="btn-check" name="action-mode" id="@id" autocomplete="off"
+               checked="@(Mode == mode)" @onchange="() => ModeChanged.InvokeAsync(mode)" />
+        <label class="btn btn-outline-primary" for="@id">@label</label>
+    };
+}
