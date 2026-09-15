@@ -4,7 +4,8 @@ Projet d'école (binôme) — ASP.NET Core Minimal API + Blazor WebAssembly + gR
 
 ## Membres du binôme
 
-- À compléter par le binôme.
+- Célian CHAUSSON
+- Diego CARRIERE
 
 ## Prérequis
 
@@ -71,5 +72,7 @@ le joueur. Aucune de ces pistes n'était nécessaire pour démontrer le parcours
 
 - `docs/adr/` : décisions d'architecture (modèle de données, placement, résolution des tirs, stratégie de
   l'adversaire, transport gRPC-Web, stockage).
+- `docs/ticket.md` : pistes de backlog proposées au-delà du socle (non tranchées), en complément de la section
+  « Arbitrages du backlog » ci-dessus.
 - `PROMPTS.md` : échanges décisifs avec l'IA.
 - `REVUE-IA.md` : revues critiques de propositions IA.
