@@ -87,6 +87,31 @@ public class GameTests
     }
 
     [Fact]
+    public async Task PlayHumanShot_ConcurrentCallsOnSameCell_OnlyOneIsAccepted()
+    {
+        // Un Game est un singleton partagé côté serveur (InMemoryGameStore) : deux requêtes concurrentes sur le
+        // même gameId peuvent toutes deux passer IsValidTarget avant que l'une n'appelle ReceiveShot si l'accès
+        // n'est pas sérialisé. Ce test échouerait (plus d'un Accepted) sans le verrou dans Game.PlayHumanShot.
+        var game = Game.CreateRandom(Guid.NewGuid(), new Random(7));
+        var target = new Coordinate(0, 0);
+        using var start = new ManualResetEventSlim(false);
+
+        var tasks = Enumerable.Range(0, 32)
+            .Select(_ => Task.Run(() =>
+            {
+                start.Wait();
+                return game.PlayHumanShot(target);
+            }))
+            .ToArray();
+        start.Set();
+        var results = await Task.WhenAll(tasks);
+
+        Assert.Single(results, r => r is MoveResult.Accepted);
+        Assert.Equal(31, results.Count(r => r is MoveResult.Rejected { Reason: MoveRejectionReason.AlreadyPlayed }));
+        Assert.Equal(1, game.ComputerBoard.ShotsReceived.Count(c => c == target));
+    }
+
+    [Fact]
     public void ComputerAutoShot_OnlyTargetsUntriedCellsOnHumanBoard_AcrossFullGame()
     {
         var rng = new Random(42);

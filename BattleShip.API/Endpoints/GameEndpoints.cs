@@ -14,12 +14,12 @@ public static class GameEndpoints
         group.MapPost("", (InMemoryGameStore store) =>
         {
             var game = store.Create();
-            return Results.Created($"/api/games/{game.Id}", game.ToCreateGameResponseDto());
+            return game.Locked(() => Results.Created($"/api/games/{game.Id}", game.ToCreateGameResponseDto()));
         });
 
         group.MapGet("/{gameId:guid}", (Guid gameId, InMemoryGameStore store) =>
             store.Find(gameId) is { } game
-                ? Results.Ok(game.ToGameStateDto())
+                ? Results.Ok(game.Locked(() => game.ToGameStateDto()))
                 : Results.NotFound());
 
         group.MapPost("/{gameId:guid}/shots", (Guid gameId, ShotRequestDto request, InMemoryGameStore store) =>
@@ -28,13 +28,19 @@ public static class GameEndpoints
             if (game is null)
                 return Results.NotFound();
 
-            var result = game.PlayHumanShot(new Coordinate(request.Row, request.Column));
-            return result switch
+            // PlayHumanShot verrouille déjà à lui seul, mais Locked est réentrant : ce bloc englobe aussi le
+            // mapping DTO qui suit, pour qu'aucune autre requête sur ce gameId ne s'intercale entre le tir et
+            // la lecture de son résultat.
+            return game.Locked(() =>
             {
-                MoveResult.Accepted accepted => Results.Ok(game.ToTurnResultDto(accepted.Turn)),
-                MoveResult.Rejected rejected => ToConflict(rejected.Reason),
-                _ => Results.Problem("Résultat de coup inattendu.")
-            };
+                var result = game.PlayHumanShot(new Coordinate(request.Row, request.Column));
+                return result switch
+                {
+                    MoveResult.Accepted accepted => Results.Ok(game.ToTurnResultDto(accepted.Turn)),
+                    MoveResult.Rejected rejected => ToConflict(rejected.Reason),
+                    _ => Results.Problem("Résultat de coup inattendu.")
+                };
+            });
         }).AddEndpointFilter<ValidationFilter<ShotRequestDto>>();
     }
 

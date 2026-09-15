@@ -19,7 +19,7 @@ public sealed class BattleshipGrpcService(InMemoryGameStore store, IValidator<Ge
         if (game is null)
             throw new RpcException(new Status(StatusCode.NotFound, "Partie introuvable."));
 
-        return GameStateMapper.ToGameStateReply(game);
+        return game.Locked(() => GameStateMapper.ToGameStateReply(game));
     }
 }
 
