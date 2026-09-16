@@ -74,8 +74,13 @@ Toutes les options se cochent sur l'accueil et se combinent ; la partie classiqu
   le navigateur : cocher « Radar », faire deux scans, puis tenter un troisième → message
   `Plus aucun scan radar disponible (gRPC FailedPrecondition)`.
 - **Salvo** (ADR 0011) : chaque tour, exactement un tir par navire encore à flot, pour le joueur comme pour
-  l'ordinateur. Sélectionner les cases puis « Tirer la salve » (`POST /api/games/{id}/salvos`). Une salve de
-  mauvaise taille est refusée en entier, sans qu'aucun de ses tirs ne soit appliqué.
+  l'ordinateur. Sélectionner les cases puis « Tirer la salve », envoyée en **gRPC-Web** (`rpc PlaySalvo`,
+  ADR 0014, vérifié dans le navigateur : `POST .../battleship.Battleship/PlaySalvo` → 200) — le
+  `POST /api/games/{id}/salvos` REST équivalent reste disponible pour d'autres clients. Une salve de
+  mauvaise taille est refusée en entier (`FailedPrecondition`), sans qu'aucun de ses tirs ne soit appliqué ;
+  contrairement au radar, ce refus n'est pas déclenchable depuis l'App elle-même (le bouton reste désactivé
+  tant que la sélection n'a pas exactement la bonne taille) — il est couvert par `Api/GrpcSalvoTests.cs`,
+  pas par une manipulation possible dans l'interface.
 - **Armes spéciales** (ADR 0012) : une torpille (part d'un bord et s'arrête sur le premier navire touché) et une
   frappe aérienne de 3 cases alignées par camp, l'ordinateur compris (`POST /api/games/{id}/torpedoes`,
   `POST /api/games/{id}/airstrikes`). Chaque arme remplace tout le tour.

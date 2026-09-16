@@ -310,30 +310,23 @@ verrouillée à la création comme les autres options.
 
 ## TICKET-07 — Extension de gRPC-Web à un second flux mutant
 
-**Statut** : proposé
+**Statut** : livré (ADR 0014)
 
-**Description** : seuls `GetGameState` (lecture) et `ScanZone` (mutant, TICKET-02) passent par gRPC-Web ;
-les autres actions (tir classique, salve, armes) restent exclusivement REST. Migrer un second flux mutant
-élargirait la démonstration gRPC-Web au-delà d'un unique échange et vérifierait que le pattern de
-l'ADR 0010 (verrou + erreurs typées) se généralise sans réécriture.
+**Description** : seuls `GetGameState` (lecture) et `ScanZone` (mutant, TICKET-02) passaient par gRPC-Web ;
+la Salve (TICKET-01) est ajoutée comme second flux mutant, en plus du `POST /salvos` REST existant.
 
-**État actuel du code** :
-- `GameEndpoints.cs` expose `/shots`, `/salvos`, `/torpedoes`, `/airstrikes` en REST uniquement.
-- `Protos/battleship.proto` ne contient que `GetGameState` et `ScanZone`.
-- Les DTO REST (`ShotRequestDto`, `SalvoRequestDto`, `WeaponRequestDto`) n'ont pas d'équivalent proto.
+**Décisions tranchées** : Salve plutôt qu'une arme (même forme « lot de coordonnées » que `ScanZone`) ;
+les deux chemins (REST et gRPC-Web) coexistent plutôt que de retirer le REST déjà livré et testé
+(ADR 0011) ; l'App n'utilise désormais que gRPC-Web pour tirer une salve, pour que le second flux soit
+réellement démontrable depuis le navigateur, pas seulement en intégration.
 
-**Impact technique** :
-- Nouveau `rpc` (ex. `PlaySalvo`) + validateur FluentValidation dédié, sur le modèle de
-  `ScanZoneRequestValidator`.
-- Bascule de l'appel correspondant dans `Game.razor` vers gRPC-Web.
-- ADR : mise à jour du statut de l'ADR 0005/0010, ou nouvel ADR selon l'ampleur retenue.
-
-**Questions à trancher** : quel flux migrer (Salve, plus proche du scan par sa forme « lot de coordonnées »,
-ou Arme) ; conserver le double chemin REST + gRPC ou migrer complètement ; quelle erreur typée démontrer
-pour ne pas répéter exactement le cas déjà couvert par le scan.
-
-**Tests attendus** : intégration gRPC succès + erreurs typées dans le style de `GrpcScanZoneTests.cs` ;
-non-régression du chemin REST si conservé.
+**Réalisé** :
+- `Protos/battleship.proto` : `rpc PlaySalvo` + `PlaySalvoRequest`/`PlaySalvoReply` (ajout pur).
+- `BattleshipGrpcService.PlaySalvo` + `PlaySalvoRequestValidator` (contrôles de forme, comme
+  `SalvoRequestDtoValidator` côté REST) ; `GameStateMapper.ToPlaySalvoReply`.
+- `Game.razor.FireSalvoGrpcAsync` remplace l'appel REST pour l'action « Tirer la salve ».
+- `Api/GrpcSalvoTests.cs` : succès, `FailedPrecondition` (taille, mode classique), `InvalidArgument`
+  (doublon, lot vide, GUID malformé), `NotFound`. `Api/SalvoEndpointsTests.cs` inchangé, toujours vert.
 
 ---
 
