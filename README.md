@@ -94,6 +94,10 @@ Toutes les options se cochent sur l'accueil et se combinent ; la partie classiqu
   (chasse/cible : aléatoire tant qu'aucune touche, puis cases adjacentes à une touche non coulée) ou Difficile
   (grille de probabilité, comportement historique et valeur par défaut, ADR 0008). Les trois stratégies
   respectent le même chokepoint anti-fuite (`OpponentBoardDto`) que l'IA d'origine.
+- **Journal de partie** (ADR 0016) : un panneau liste, tour par tour, chaque coup joué (tir, scan, salve,
+  arme) et la riposte de l'ordinateur. Stocké côté serveur (`Game.History`) : survit à un rechargement de
+  la page, contrairement à un simple résumé côté client. Ne couvre qu'une seule partie, comme le reste de
+  son état — distinct de l'historique/statistiques inter-parties explicitement écarté ci-dessous.
 - Les options sont décrites par `docs/adr/0009-options-de-partie.md`.
 
 ## Arbitrages du backlog
@@ -116,8 +120,9 @@ Règles tranchées par le binôme et détail par ticket dans `docs/ticket.md`. �
 
 Deuxième vague d'extensions (2026-09-16), partie des limites documentées ci-dessous plutôt que d'une nouvelle
 recherche de variantes : renforcement des tests de concurrence (TICKET-08), Salve aussi exposée en gRPC-Web en
-plus du REST existant (TICKET-07, ADR 0014), IA à difficulté réglable (TICKET-06, ADR 0015). Détail des tickets
-encore ouverts (grille/flotte configurables, journal de partie) dans `docs/ticket.md`.
+plus du REST existant (TICKET-07, ADR 0014), IA à difficulté réglable (TICKET-06, ADR 0015), journal de partie
+stocké côté serveur (TICKET-10, ADR 0016). Détail du ticket encore ouvert (grille/flotte configurables, le plus
+invasif de cette vague) dans `docs/ticket.md`.
 
 ## Limites connues
 

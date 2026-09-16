@@ -412,33 +412,27 @@ densités sur la flotte réellement configurée (pas `Fleet.Standard` codé en d
 
 ## TICKET-10 — Journal de partie affiché en direct
 
-**Statut** : proposé
+**Statut** : livré (ADR 0016)
 
-**Description** : afficher pendant la partie un journal chronologique des coups joués (tirs, scans,
-salves, armes, des deux côtés), non persistant. **Distinct** de « l'historique et les statistiques »
-inter-parties explicitement écarté dans le README (qui visait une persistance de partie en partie) : ce
-journal ne vit que dans la session de jeu affichée.
+**Description** : un panneau liste, tour par tour, chaque coup joué (tir, scan, salve, arme) et la riposte
+de l'ordinateur. **Distinct** de « l'historique et les statistiques » inter-parties explicitement écarté
+dans le README (qui visait une persistance de partie en partie) : ce journal ne couvre qu'une seule partie.
 
-**État actuel du code** : `Game`/`Board` ne conservent que l'état courant (cases jouées, navires coulés) ;
-aucun historique ordonné des coups n'est stocké. Le front ne fait qu'afficher l'état courant via
-`GetGameState`, sans accumuler les `TurnResultDto` reçus.
+**Décision tranchée** : stockage **côté serveur** plutôt qu'accumulation côté client — le journal doit
+survivre à un rechargement de page, comme le reste de l'état d'une partie. La formulation initiale
+envisageait un test mêlant « tir » et « salve » dans la même séquence : impossible, `ShotMode` est figé par
+partie (ADR 0009) ; testés séparément.
 
-**Impact technique** :
-- Option la plus simple : accumulation **côté client uniquement**, dans l'état Blazor de `Game.razor`
-  (liste des `TurnResultDto` reçus au fil des appels) — aucun changement de contrat serveur, pas d'ADR.
-- Limite assumée dans ce cas : le journal disparaît aussi au rechargement de page en cours de partie
-  (`GetGameState` ne renvoie que l'état courant, pas l'historique).
-- Alternative plus lourde : `Game` conserve une liste ordonnée de résolutions pour survivre au
-  rechargement — implique un ADR de changement de représentation d'état.
-- UI : nouveau panneau listant les entrées (ex. « Tour 4 : tir en (B,3) → touché »).
-
-**Questions à trancher** : le journal doit-il survivre à un rechargement de page (stockage côté `Game`,
-ADR requis) ou seulement à la session d'affichage courante (pas d'ADR) — cette décision fixe si le ticket
-reste peu invasif ou rejoint la catégorie des changements de représentation d'état.
-
-**Tests attendus** : si stockage serveur retenu, test xUnit vérifiant un historique complet et ordonné
-après une séquence mêlant tir/scan/salve/arme ; si accumulation côté client, test de composant (bUnit, cf.
-TICKET-08 si retenu) vérifiant l'affichage au fil des appels.
+**Réalisé** :
+- `Game.History` (`List<TurnResult>` interne), alimenté au chokepoint déjà commun à toute action
+  (`CompleteTurn`) : un coup refusé n'y apparaît jamais.
+- `JournalEntryDto` ; `GameStateDto.History` et `TurnResultDto.History` portent la liste complète à chaque
+  réponse (pas seulement la nouvelle entrée). `GameStateReply.history = 8` (proto) + `JournalEntryMessage` ;
+  `ScanZoneReply`/`PlaySalvoReply` en héritent gratuitement via leur `state` imbriqué.
+- `Game.razor` : l'ancien résumé à une ligne (dernière riposte seulement) est remplacé par un panneau
+  listant tout `_state.History`.
+- `Engine/GameHistoryTests.cs` (ordre et contenu sur tir/scan/arme mêlés, une entrée par salve entière,
+  aucune entrée pour un coup refusé) ; round-trip REST et gRPC.
 
 ---
 
