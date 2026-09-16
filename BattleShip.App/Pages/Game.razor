@@ -171,7 +171,8 @@ else
                 Column = origin.Column
             });
             _state = reply.State.ToGameStateDto();
-            _turnSummary = $"Scan : {(reply.Scan.ShipDetected ? "navire détecté" : "zone vide")}. {DescribeComputerTurn(reply.ComputerShots.Count, null)}";
+            var computerWeapon = string.IsNullOrEmpty(reply.ComputerWeapon) ? null : reply.ComputerWeapon;
+            _turnSummary = $"Scan : {(reply.Scan.ShipDetected ? "navire détecté" : "zone vide")}. {DescribeComputerTurn(reply.ComputerShots.Count, computerWeapon)}";
         }
         catch (RpcException ex)
         {

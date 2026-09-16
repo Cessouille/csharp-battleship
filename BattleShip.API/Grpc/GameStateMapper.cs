@@ -18,7 +18,8 @@ public static class GameStateMapper
         var reply = new ScanZoneReply
         {
             Scan = dto.PlayerScan is null ? null : ToScanMessage(dto.PlayerScan),
-            State = ToGameStateReply(game)
+            State = ToGameStateReply(game),
+            ComputerWeapon = dto.ComputerWeapon ?? string.Empty
         };
         reply.ComputerShots.AddRange(dto.ComputerShots.Select(ToShotResultMessage));
         return reply;

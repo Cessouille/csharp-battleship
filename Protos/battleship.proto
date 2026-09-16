@@ -86,4 +86,5 @@ message ScanZoneReply {
   ScanMessage scan = 1;
   repeated ShotResultMessage computer_shots = 2;
   GameStateReply state = 3;
+  string computer_weapon = 4; // "" si l'ordinateur a répliqué par un tir classique
 }
