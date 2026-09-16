@@ -90,6 +90,10 @@ Toutes les options se cochent sur l'accueil et se combinent ; la partie classiqu
   `CreateGameRequestDto`) et revalidées par le serveur (composition de la flotte, bornes, chevauchement) ; une
   composition incorrecte ou un chevauchement est refusé en bloc (`409 Conflict`). Le mode "Aléatoire" reste le
   défaut et se comporte exactement comme avant.
+- **IA à difficulté réglable** (ADR 0015) : à l'accueil, choisir Facile (tir uniforme au hasard), Moyenne
+  (chasse/cible : aléatoire tant qu'aucune touche, puis cases adjacentes à une touche non coulée) ou Difficile
+  (grille de probabilité, comportement historique et valeur par défaut, ADR 0008). Les trois stratégies
+  respectent le même chokepoint anti-fuite (`OpponentBoardDto`) que l'IA d'origine.
 - Les options sont décrites par `docs/adr/0009-options-de-partie.md`.
 
 ## Arbitrages du backlog
@@ -110,11 +114,15 @@ L'ordre va du moins invasif (aucun changement de contrat) au plus invasif (refon
 Règles tranchées par le binôme et détail par ticket dans `docs/ticket.md`. Écarté : navires en formes libres
 (tétrominos), qui aurait imposé de refaire toute la validation du placement.
 
+Deuxième vague d'extensions (2026-09-16), partie des limites documentées ci-dessous plutôt que d'une nouvelle
+recherche de variantes : renforcement des tests de concurrence (TICKET-08), Salve aussi exposée en gRPC-Web en
+plus du REST existant (TICKET-07, ADR 0014), IA à difficulté réglable (TICKET-06, ADR 0015). Détail des tickets
+encore ouverts (grille/flotte configurables, journal de partie) dans `docs/ticket.md`.
+
 ## Limites connues
 
 - L'état des parties est perdu au redémarrage de l'API (stockage en mémoire, voir ADR 0006).
 - Aucune authentification : quiconque connaît l'identifiant (GUID) d'une partie peut la consulter/y jouer.
-- L'adversaire n'a pas de niveau de difficulté réglable : la grille de probabilité est toujours utilisée.
 - Avec les armes spéciales, l'ordinateur lance sa torpille dès son premier tour (heuristique simple, ADR 0012).
 - La règle de la frappe aérienne sur des cases déjà jouées (ignorées) a été déduite de celle de la torpille et
   reste à confirmer par le binôme.

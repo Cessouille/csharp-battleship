@@ -275,36 +275,28 @@ par défaut ; l'ordinateur reste toujours placé au hasard.
 
 ## TICKET-06 — IA à difficulté réglable
 
-**Statut** : proposé
+**Statut** : livré (ADR 0015)
 
-**Description** : le joueur choisit à la création un niveau de difficulté de l'IA adverse, au lieu de la
-grille de probabilité systématique actuelle. Adresse la limite documentée dans le README : « l'adversaire
-n'a pas de niveau de difficulté réglable ».
+**Description** : le joueur choisit à la création un niveau de difficulté de l'IA adverse — Facile, Moyen
+ou Difficile — au lieu de la grille de probabilité systématique. Adresse la limite qui était documentée
+dans le README : « l'adversaire n'a pas de niveau de difficulté réglable ».
 
-**État actuel du code** :
-- `Game` instancie toujours `ProbabilityTargeting` (ADR 0008) ; il n'existe aucun autre choix.
-- `IComputerTargeting` est une interface déjà pensée pour être substituable — c'est le seam à réutiliser.
-- La stratégie aléatoire uniforme d'origine (pré-ADR 0008) n'existe plus dans le code : à réintroduire
-  comme implémentation distincte si un palier « Facile » est retenu.
-- `PROMPTS.md` mentionne une stratégie chasse/cible intermédiaire, envisagée puis écartée au profit de la
-  grille de probabilité — candidate pour un éventuel palier « Moyen ».
+**Décisions tranchées** : trois paliers plutôt que deux (le « Moyen » chasse/cible envisagé puis écarté
+lors du réalignement du backlog est finalement implémenté) ; verrouillé à la création comme les autres
+options, défaut `Hard` pour ne rien changer aux parties existantes.
 
-**Impact technique** :
-- `GameOptions` gagne un champ `Difficulty` (valeur par défaut = comportement actuel, pour ne rien casser).
-- Nouvelle(s) implémentation(s) `IComputerTargeting` dans `BattleShip.Models/Ai/` (ex. `RandomTargeting`).
-- `Game` sélectionne la stratégie à partir de `Options.Difficulty` au lieu de toujours instancier
-  `ProbabilityTargeting`.
-- Propagation dans `CreateGameRequestDto`/validateur, `GameStateDto`/`GameStateReply` (nouveau champ proto,
-  jamais renuméroté), sélecteur dans `Home.razor`.
-- **ADR obligatoire** (CLAUDE.md §3 : la stratégie de l'adversaire est structurante) — succession de
-  l'ADR 0008, pas un remplacement.
-
-**Questions à trancher** : deux paliers (Facile/Difficile) ou trois (+ Moyen) ; la difficulté reste-t-elle
-verrouillée à la création comme les autres options.
-
-**Tests attendus** : chaque stratégie ne cible jamais une case déjà jouée (à dupliquer sur le modèle de
-`ProbabilityTargetingTests`) ; nombre moyen de tirs pour couler la flotte plus élevé en « Facile » qu'en
-« Difficile » sur des graines fixes ; options relues identiques en REST et gRPC.
+**Réalisé** :
+- `AiDifficulty` (`GameOptions.Difficulty`, défaut `Hard`).
+- `BattleShip.Models/Ai/RandomTargeting.cs` (Facile) et `HuntTargetTargeting.cs` (Moyen), aux côtés de
+  `ProbabilityTargeting` (Difficile, inchangé). La doublure de test du même nom
+  (`BattleShip.Tests.TestData.RandomTargeting`) a été supprimée au profit de la vraie implémentation.
+- `Game.CreateTargeting(Options.Difficulty)` (`internal`) sélectionne la stratégie par défaut ; une
+  stratégie passée explicitement au constructeur (tests TICKET-03/04) continue de primer.
+- Contrat : `CreateGameRequestDto.Difficulty`, `GameOptionsDto.Difficulty`,
+  `GameOptionsMessage.difficulty = 4` ; sélecteur dans `Home.razor`.
+- `Engine/RandomTargetingTests.cs`, `Engine/HuntTargetTargetingTests.cs`, `Engine/AiDifficultyTests.cs`
+  (mapping difficulté→stratégie, moyenne de tirs Facile > Moyen > Difficile sur 30 graines) ; round-trip
+  REST et gRPC de l'option.
 
 ---
 
