@@ -52,9 +52,10 @@ dotnet test BattleShip.Tests
 - Moteur de jeu (`BattleShip.Models/Domain`) indépendant de HTTP/JSON/gRPC : grille 10×10, flotte classique à 5
   navires (porte-avions 5, croiseur 4, contre-torpilleur 3, sous-marin 3, torpilleur 2) placée aléatoirement sans
   chevauchement ni débordement, résolution des tirs, détection de fin de partie.
-- API Minimal API (`POST /api/games`, `GET /api/games/{id}`, `POST /api/games/{id}/shots`) : règles vérifiées côté
-  serveur uniquement, coup invalide refusé sans mutation d'état, aucun coup accepté après la fin de partie, DTO
-  explicites qui ne révèlent jamais les positions adverses non découvertes (`OpponentBoardDto`). La création
+- API Minimal API (`POST /api/games`, `GET /api/games/{id}`, `POST /api/games/{id}/shots` — routes supplémentaires
+  `.../salvos`, `.../torpedoes`, `.../airstrikes` listées dans « Extensions livrées » ci-dessous) : règles vérifiées
+  côté serveur uniquement, coup invalide refusé sans mutation d'état, aucun coup accepté après la fin de partie,
+  DTO explicites qui ne révèlent jamais les positions adverses non découvertes (`OpponentBoardDto`). La création
   attend un corps JSON : `{}` pour une partie classique (voir `BattleShip.API/BattleShip.API.http`).
 - FluentValidation sur les entrées HTTP et gRPC.
 - Interface Blazor WebAssembly : accueil, page de jeu avec les deux grilles, tirs, fin de partie et nouvelle partie.

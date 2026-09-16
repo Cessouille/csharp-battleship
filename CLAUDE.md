@@ -11,31 +11,22 @@ Projet d'école (binôme) : une bataille navale jouable dans le navigateur.
 
 Le socle attendu (contrainte du cours, diapos 5-6) est une **partie complète et jouable de bout en bout contre l'ordinateur** : création de partie → placement → tirs alternés → détection de fin → nouvelle partie. Ce n'est pas une somme de morceaux isolés : tant que ce parcours complet n'est pas démontrable dans le navigateur, le socle n'est pas atteint, même si chaque brique compile et a des tests verts séparément.
 
-État actuel : scaffold par défaut (`dotnet new` : pages Weather/Counter, `Class1.cs`, `UnitTest1.cs`). Rien du jeu n'est implémenté.
+État actuel (mis à jour 2026-09-16) : le socle (partie complète jouable de bout en bout) et les quatre extensions
+(options de partie, radar, Salvo, armes spéciales) sont implémentés et documentés. Aucun scaffold `dotnet new`
+résiduel (pages Weather/Counter, `Class1.cs`, `UnitTest1.cs` déjà supprimés).
 
 ### État des lieux vérifié à la racine
 
 | Élément | État |
 |---|---|
 | Les 4 projets + `BattleShip.slnx` | présents |
-| `.gitignore` | **absent** |
-| `global.json` | **absent** — prérequis avant toute commande de build/solution (copier `csharp-school/Ressources Bataille Navale/global.json`) |
-| `README.md` | présent mais vide en pratique (UTF-16, une ligne de titre) |
-| `PROMPTS.md`, `REVUE-IA.md`, `docs/adr/` | **absents** — ce sont trois livrables notés (diapo 11) |
-| `Protos/` | **absent** — à créer pour le contrat gRPC-Web |
+| `.gitignore` | présent |
+| `global.json` | présent (SDK `10.0.100`, `rollForward: latestFeature`) |
+| `README.md` | présent et complet (prérequis, commandes, ports réels, fonctionnalités livrées, arbitrages, limites connues) |
+| `PROMPTS.md`, `REVUE-IA.md`, `docs/adr/` | présents et peuplés (livrables notés, diapo 11) |
+| `Protos/battleship.proto` | présent — contrat gRPC-Web partagé API/App |
 
-SDK : `10.0.401` installé sur ce poste, compatible avec le `global.json` du cours (`10.0.100` + `rollForward: latestFeature`). Revérifier `dotnet --version` depuis la racine une fois le fichier copié.
-
-**Problème connu à corriger en priorité** : sans `.gitignore`, le commit `init` (`5c9435e`, **déjà poussé sur `origin/main`**) a embarqué 1327 fichiers de build sur 1401 fichiers suivis. Avant toute nouvelle fonctionnalité, nettoyer par un commit en avant — pas de réécriture d'historique, il est publié :
-
-```
-dotnet new gitignore                                    # à la racine
-git rm -r --cached .                                    # désindexe tout, sans toucher aux fichiers du disque
-git add .                                               # ré-indexe en appliquant le .gitignore
-git commit -m "chore: ignore les artefacts de build"
-```
-
-Le gabarit `dotnet new gitignore` couvre au passage `.idea/`, actuellement non suivi mais non ignoré non plus. Commit à isoler du reste du travail, et à proposer à l'utilisateur avant de le passer : ce n'est pas anodin sur un historique déjà poussé.
+SDK : revérifier `dotnet --version` depuis la racine annonce bien un SDK compatible avec `global.json`.
 
 ## Structure du dépôt
 
