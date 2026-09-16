@@ -15,6 +15,23 @@ public enum GameStatus
     Finished
 }
 
+public enum FleetPlacementRejectionReason
+{
+    InvalidFleetComposition,
+    OutOfGridOrOverlap
+}
+
+public abstract record CreateGameResult
+{
+    private CreateGameResult()
+    {
+    }
+
+    public sealed record Created(Game Game) : CreateGameResult;
+
+    public sealed record Rejected(FleetPlacementRejectionReason Reason) : CreateGameResult;
+}
+
 public enum MoveRejectionReason
 {
     OutOfGrid,
@@ -107,6 +124,32 @@ public sealed class Game
         human.PlaceFleetRandomly(Fleet.Standard, rng);
         computer.PlaceFleetRandomly(Fleet.Standard, rng);
         return new Game(id, human, computer, options, rng: rng);
+    }
+
+    /// <summary>
+    /// Placement choisi par le joueur (voir docs/adr/0013-placement-manuel.md) : la composition de
+    /// <paramref name="placements"/> doit correspondre exactement à <see cref="Fleet.Standard"/> (mêmes types
+    /// de navire, un de chaque), puis chaque position est revalidée par <see cref="Board.TryPlaceFleet"/> — le
+    /// client n'est jamais une source de vérité. Le plateau ordinateur reste placé au hasard comme aujourd'hui.
+    /// </summary>
+    public static CreateGameResult TryCreateManual(
+        Guid id,
+        IReadOnlyList<(ShipKind Kind, Coordinate Origin, Orientation Orientation)> placements,
+        Random rng,
+        GameOptions? options = null)
+    {
+        var expectedKinds = Fleet.Standard.Select(f => f.Kind).OrderBy(k => k);
+        var actualKinds = placements.Select(p => p.Kind).OrderBy(k => k);
+        if (!expectedKinds.SequenceEqual(actualKinds))
+            return new CreateGameResult.Rejected(FleetPlacementRejectionReason.InvalidFleetComposition);
+
+        var human = new Board();
+        if (!human.TryPlaceFleet(placements, Fleet.Standard))
+            return new CreateGameResult.Rejected(FleetPlacementRejectionReason.OutOfGridOrOverlap);
+
+        var computer = new Board();
+        computer.PlaceFleetRandomly(Fleet.Standard, rng);
+        return new CreateGameResult.Created(new Game(id, human, computer, options, rng: rng));
     }
 
     /// <summary>Exécute <paramref name="func"/> sous le verrou de cette partie — à utiliser pour toute lecture (mapping DTO/proto) comme pour l'écriture, afin qu'aucune requête concurrente sur le même gameId ne voie un état à moitié muté.</summary>

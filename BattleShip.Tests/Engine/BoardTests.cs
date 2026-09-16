@@ -51,6 +51,63 @@ public class BoardTests
     }
 
     [Fact]
+    public void TryPlaceFleet_WithValidStandardPlacements_PlacesExactlyThatFleet()
+    {
+        var board = new Board();
+        var placements = new (ShipKind Kind, Coordinate Origin, Orientation Orientation)[]
+        {
+            (ShipKind.PorteAvions, new Coordinate(0, 0), Orientation.Horizontal),
+            (ShipKind.Croiseur, new Coordinate(2, 0), Orientation.Horizontal),
+            (ShipKind.ContreTorpilleur, new Coordinate(4, 0), Orientation.Horizontal),
+            (ShipKind.SousMarin, new Coordinate(6, 0), Orientation.Horizontal),
+            (ShipKind.Torpilleur, new Coordinate(8, 0), Orientation.Horizontal),
+        };
+
+        var placed = board.TryPlaceFleet(placements, Fleet.Standard);
+
+        Assert.True(placed);
+        Assert.Equal(Fleet.Standard.Count, board.Ships.Count);
+        Assert.Equal(Fleet.Standard.Sum(f => f.Size), board.Ships.Sum(s => s.Cells.Count));
+        Assert.Contains(board.Ships, s => s.Kind == ShipKind.PorteAvions && s.Cells[0] == new Coordinate(0, 0));
+    }
+
+    [Fact]
+    public void TryPlaceFleet_RejectsWhenAnyPlacementOverlaps()
+    {
+        var board = new Board();
+        var placements = new (ShipKind Kind, Coordinate Origin, Orientation Orientation)[]
+        {
+            (ShipKind.PorteAvions, new Coordinate(0, 0), Orientation.Horizontal),
+            (ShipKind.Croiseur, new Coordinate(0, 2), Orientation.Vertical), // chevauche PorteAvions en (0,2)
+            (ShipKind.ContreTorpilleur, new Coordinate(4, 0), Orientation.Horizontal),
+            (ShipKind.SousMarin, new Coordinate(6, 0), Orientation.Horizontal),
+            (ShipKind.Torpilleur, new Coordinate(8, 0), Orientation.Horizontal),
+        };
+
+        var placed = board.TryPlaceFleet(placements, Fleet.Standard);
+
+        Assert.False(placed);
+    }
+
+    [Fact]
+    public void TryPlaceFleet_RejectsWhenAnyPlacementIsOutOfGrid()
+    {
+        var board = new Board();
+        var placements = new (ShipKind Kind, Coordinate Origin, Orientation Orientation)[]
+        {
+            (ShipKind.PorteAvions, new Coordinate(0, 8), Orientation.Horizontal), // dépasse la colonne 9
+            (ShipKind.Croiseur, new Coordinate(2, 0), Orientation.Horizontal),
+            (ShipKind.ContreTorpilleur, new Coordinate(4, 0), Orientation.Horizontal),
+            (ShipKind.SousMarin, new Coordinate(6, 0), Orientation.Horizontal),
+            (ShipKind.Torpilleur, new Coordinate(8, 0), Orientation.Horizontal),
+        };
+
+        var placed = board.TryPlaceFleet(placements, Fleet.Standard);
+
+        Assert.False(placed);
+    }
+
+    [Fact]
     public void ReceiveShot_OnEmptyCell_ReturnsMiss_NoShipMutated()
     {
         var board = new Board();

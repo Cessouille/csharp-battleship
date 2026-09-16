@@ -24,6 +24,26 @@ public sealed class Board
         return true;
     }
 
+    /// <summary>
+    /// Placement contrôlé (choisi par le joueur) : rejoue chaque position demandée via <see cref="TryPlaceShip"/>,
+    /// la taille de chaque navire venant de <paramref name="spec"/> (jamais de l'appelant) pour ne pas faire
+    /// confiance à une taille fournie côté client. À appeler sur un plateau vide ; en cas d'échec, le plateau
+    /// peut rester partiellement peuplé et doit être abandonné par l'appelant (voir docs/adr/0013-placement-manuel.md).
+    /// </summary>
+    public bool TryPlaceFleet(
+        IReadOnlyList<(ShipKind Kind, Coordinate Origin, Orientation Orientation)> placements,
+        IReadOnlyList<(ShipKind Kind, int Size)> spec)
+    {
+        foreach (var (kind, origin, orientation) in placements)
+        {
+            var size = spec.FirstOrDefault(s => s.Kind == kind).Size;
+            if (size == 0 || !TryPlaceShip(kind, origin, orientation, size))
+                return false;
+        }
+
+        return true;
+    }
+
     public void PlaceFleetRandomly(IReadOnlyList<(ShipKind Kind, int Size)> spec, Random rng, int maxAttemptsPerShip = 200)
     {
         foreach (var (kind, size) in spec)

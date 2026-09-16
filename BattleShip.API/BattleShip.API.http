@@ -72,3 +72,41 @@ Content-Type: application/json
 
 { "row": 0, "column": 8, "orientation": "Horizontal" }
 
+### Placement manuel valide (voir docs/adr/0013-placement-manuel.md) -> 201, MyBoard reflète exactement ces positions
+POST {{api}}/api/games
+Content-Type: application/json
+
+{
+  "placements": [
+    { "kind": "PorteAvions", "row": 0, "column": 0, "orientation": "Horizontal" },
+    { "kind": "Croiseur", "row": 2, "column": 0, "orientation": "Horizontal" },
+    { "kind": "ContreTorpilleur", "row": 4, "column": 0, "orientation": "Horizontal" },
+    { "kind": "SousMarin", "row": 6, "column": 0, "orientation": "Horizontal" },
+    { "kind": "Torpilleur", "row": 8, "column": 0, "orientation": "Horizontal" }
+  ]
+}
+
+### Placement manuel avec chevauchement -> 409 Conflict (OUT_OF_GRID_OR_OVERLAP)
+POST {{api}}/api/games
+Content-Type: application/json
+
+{
+  "placements": [
+    { "kind": "PorteAvions", "row": 0, "column": 0, "orientation": "Horizontal" },
+    { "kind": "Croiseur", "row": 0, "column": 2, "orientation": "Vertical" },
+    { "kind": "ContreTorpilleur", "row": 4, "column": 0, "orientation": "Horizontal" },
+    { "kind": "SousMarin", "row": 6, "column": 0, "orientation": "Horizontal" },
+    { "kind": "Torpilleur", "row": 8, "column": 0, "orientation": "Horizontal" }
+  ]
+}
+
+### Placement manuel avec un nombre de navires incorrect -> 400 ValidationProblem
+POST {{api}}/api/games
+Content-Type: application/json
+
+{
+  "placements": [
+    { "kind": "PorteAvions", "row": 0, "column": 0, "orientation": "Horizontal" }
+  ]
+}
+

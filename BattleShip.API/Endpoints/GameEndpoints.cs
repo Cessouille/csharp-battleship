@@ -15,8 +15,14 @@ public static class GameEndpoints
         // cet endpoint par ASP.NET Core, même avec un paramètre nullable (vérifié, voir REVUE-IA.md).
         group.MapPost("", (CreateGameRequestDto request, InMemoryGameStore store) =>
         {
-            var game = store.Create(request.ToGameOptions());
-            return game.Locked(() => Results.Created($"/api/games/{game.Id}", game.ToCreateGameResponseDto()));
+            var result = store.TryCreate(request.ToGameOptions(), request.Placements?.Select(p => p.ToPlacementSpec()).ToList());
+            return result switch
+            {
+                CreateGameResult.Created created => created.Game.Locked(() =>
+                    Results.Created($"/api/games/{created.Game.Id}", created.Game.ToCreateGameResponseDto())),
+                CreateGameResult.Rejected rejected => ToConflict(rejected.Reason),
+                _ => Results.Problem("Résultat de création de partie inattendu.")
+            };
         }).AddEndpointFilter<ValidationFilter<CreateGameRequestDto>>();
 
         group.MapGet("/{gameId:guid}", (Guid gameId, InMemoryGameStore store) =>
@@ -64,5 +70,8 @@ public static class GameEndpoints
     private static IResult ToConflict(MoveRejectionReason reason) =>
         // OutOfGrid est déjà rejeté en amont par FluentValidation ; le contrôle refait dans Game.PlayHumanShot
         // est une défense en profondeur, pas un chemin normalement atteint depuis cet endpoint.
+        Results.Conflict(new { code = reason.ToString() });
+
+    private static IResult ToConflict(FleetPlacementRejectionReason reason) =>
         Results.Conflict(new { code = reason.ToString() });
 }

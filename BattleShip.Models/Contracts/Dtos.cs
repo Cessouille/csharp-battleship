@@ -30,8 +30,19 @@ public sealed record OpponentBoardDto(
     IReadOnlyList<ShipViewDto> SunkShips,
     IReadOnlyList<ScanResultDto> Scans);
 
-/// <summary>Options demandées à la création ; tout champ absent garde la valeur de la partie classique (<c>{}</c> = partie classique).</summary>
-public sealed record CreateGameRequestDto(bool Radar = false, string ShotMode = "Classic", bool SpecialWeapons = false);
+/// <summary>Placement choisi par le joueur pour un navire ; <c>Orientation</c> : Horizontal ou Vertical à partir de (Row, Column).</summary>
+public sealed record ShipPlacementDto(string Kind, int Row, int Column, string Orientation);
+
+/// <summary>
+/// Options demandées à la création ; tout champ absent garde la valeur de la partie classique (<c>{}</c> = partie classique).
+/// <c>Placements</c> absent ou vide : flotte humaine placée aléatoirement (comportement historique) ; sinon, placement
+/// manuel revalidé côté serveur (voir docs/adr/0013-placement-manuel.md).
+/// </summary>
+public sealed record CreateGameRequestDto(
+    bool Radar = false,
+    string ShotMode = "Classic",
+    bool SpecialWeapons = false,
+    IReadOnlyList<ShipPlacementDto>? Placements = null);
 
 public sealed record GameOptionsDto(bool Radar, string ShotMode, bool SpecialWeapons);
 

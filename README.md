@@ -79,6 +79,12 @@ Toutes les options se cochent sur l'accueil et se combinent ; la partie classiqu
 - **Armes spéciales** (ADR 0012) : une torpille (part d'un bord et s'arrête sur le premier navire touché) et une
   frappe aérienne de 3 cases alignées par camp, l'ordinateur compris (`POST /api/games/{id}/torpedoes`,
   `POST /api/games/{id}/airstrikes`). Chaque arme remplace tout le tour.
+- **Placement manuel de la flotte** (ADR 0013) : à l'accueil, choisir "À la main" pose les 5 navires un par un
+  (clic sur la grille + bouton d'orientation), avec un bouton pour compléter le reste au hasard à tout moment.
+  Les positions choisies sont envoyées dans la même requête `POST /api/games` (`Placements` dans
+  `CreateGameRequestDto`) et revalidées par le serveur (composition de la flotte, bornes, chevauchement) ; une
+  composition incorrecte ou un chevauchement est refusé en bloc (`409 Conflict`). Le mode "Aléatoire" reste le
+  défaut et se comporte exactement comme avant.
 - Les options sont décrites par `docs/adr/0009-options-de-partie.md`.
 
 ## Arbitrages du backlog
@@ -90,14 +96,14 @@ ensuite par la grille de probabilité (`docs/adr/0008-ia-grille-probabilite.md`)
 
 Pistes du backlog explicitement écartées pour cette itération, avec la raison : multijoueur (nécessiterait une
 machine à état "à qui le tour", voir `docs/adr/0001-modele.md`), sauvegarde/persistance, historique et
-statistiques, personnalisation du placement de la flotte par le joueur. Aucune de ces pistes n'était nécessaire
-pour démontrer le parcours complet exigé par le socle.
+statistiques. Aucune de ces pistes n'était nécessaire pour démontrer le parcours complet exigé par le socle.
 
 Extensions retenues puis livrées au-delà du socle, dans cet ordre : adversaire par grille de probabilité,
-options de partie à la création, radar en gRPC-Web, mode Salvo symétrique, armes spéciales. L'ordre va du moins
-invasif (aucun changement de contrat) au plus invasif (refonte de la résolution d'un tour). Règles tranchées par
-le binôme et détail par ticket dans `docs/ticket.md`. Écarté : navires en formes libres (tétrominos), qui aurait
-imposé de refaire toute la validation du placement.
+options de partie à la création, radar en gRPC-Web, mode Salvo symétrique, armes spéciales, placement manuel de
+la flotte en option de l'aléatoire (ADR 0013 — revient sur l'arbitrage initial qui écartait cette piste).
+L'ordre va du moins invasif (aucun changement de contrat) au plus invasif (refonte de la résolution d'un tour).
+Règles tranchées par le binôme et détail par ticket dans `docs/ticket.md`. Écarté : navires en formes libres
+(tétrominos), qui aurait imposé de refaire toute la validation du placement.
 
 ## Limites connues
 
@@ -108,7 +114,8 @@ imposé de refaire toute la validation du placement.
 - La règle de la frappe aérienne sur des cases déjà jouées (ignorées) a été déduite de celle de la torpille et
   reste à confirmer par le binôme.
 - Le radar est réservé au joueur (asymétrie assumée, ADR 0010).
-- Le placement de la flotte est toujours aléatoire ; le joueur ne choisit pas la disposition de ses navires.
+- Le placement manuel (ADR 0013) ne concerne que la flotte du joueur ; celle de l'ordinateur reste toujours
+  placée au hasard.
 
 ## Documentation complémentaire
 

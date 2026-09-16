@@ -1,0 +1,58 @@
+@namespace BattleShip.App.Components
+@using BattleShip.App.Game
+@using BattleShip.Models.Domain
+
+<div class="mb-3">
+    @if (Model.NextShip is { } next)
+    {
+        <p>
+            Navire à poser : <strong>@next.Kind</strong> (@next.Size cases).
+            <label class="ms-2 d-inline-flex align-items-center gap-1">
+                orientation
+                <select class="form-select form-select-sm w-auto" value="@Model.Orientation"
+                        @onchange="e => Model.Orientation = Enum.Parse<Orientation>((string)e.Value!)">
+                    <option value="@Orientation.Horizontal">horizontale</option>
+                    <option value="@Orientation.Vertical">verticale</option>
+                </select>
+            </label>
+        </p>
+    }
+    else
+    {
+        <p class="text-success">Flotte complète : prête à lancer la partie.</p>
+    }
+
+    <div class="d-flex gap-2 mb-2">
+        <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="FillRandomly">Placer aléatoirement</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="Reset">Recommencer</button>
+    </div>
+
+    <BoardGrid Size="Model.Size" Cells="Model.ToGrid()" Interactive="@(Model.NextShip is not null)"
+               CanClick="CanClick" OnCellClick="OnCellClickAsync" />
+    <FleetLegend Ships="Model.PlacedShips" />
+</div>
+
+@code {
+    [Parameter, EditorRequired] public PlacementViewModel Model { get; set; } = default!;
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    private bool CanClick(int row, int column, CellDisplayState state) => state == CellDisplayState.Empty;
+
+    private Task OnCellClickAsync((int Row, int Column) cell)
+    {
+        Model.TryPlaceNext(new Coordinate(cell.Row, cell.Column));
+        return OnChanged.InvokeAsync();
+    }
+
+    private Task FillRandomly()
+    {
+        Model.FillRandomly(Random.Shared);
+        return OnChanged.InvokeAsync();
+    }
+
+    private Task Reset()
+    {
+        Model.Reset();
+        return OnChanged.InvokeAsync();
+    }
+}

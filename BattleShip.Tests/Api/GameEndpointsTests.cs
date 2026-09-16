@@ -47,6 +47,52 @@ public class GameEndpointsTests(WebApplicationFactory<Program> factory) : IClass
         Assert.Equal(game.Options, state!.Options);
     }
 
+    private static readonly ShipPlacementDto[] ValidStandardPlacements =
+    [
+        new(nameof(ShipKind.PorteAvions), 0, 0, nameof(Orientation.Horizontal)),
+        new(nameof(ShipKind.Croiseur), 2, 0, nameof(Orientation.Horizontal)),
+        new(nameof(ShipKind.ContreTorpilleur), 4, 0, nameof(Orientation.Horizontal)),
+        new(nameof(ShipKind.SousMarin), 6, 0, nameof(Orientation.Horizontal)),
+        new(nameof(ShipKind.Torpilleur), 8, 0, nameof(Orientation.Horizontal)),
+    ];
+
+    [Fact]
+    public async Task PostGames_WithValidManualPlacements_Returns201_WithThatExactFleet()
+    {
+        var game = await _client.CreateGameAsync(new CreateGameRequestDto(Placements: ValidStandardPlacements));
+
+        Assert.Equal(Fleet.Standard.Count, game.MyBoard.Ships.Count);
+        Assert.Contains(game.MyBoard.Ships, s => s.Kind == nameof(ShipKind.PorteAvions) && s.Cells[0] == new CoordinateDto(0, 0));
+    }
+
+    [Fact]
+    public async Task PostGames_WithOverlappingManualPlacements_Returns409()
+    {
+        var overlapping = new ShipPlacementDto[]
+        {
+            new(nameof(ShipKind.PorteAvions), 0, 0, nameof(Orientation.Horizontal)),
+            new(nameof(ShipKind.Croiseur), 0, 2, nameof(Orientation.Vertical)), // chevauche le PorteAvions
+            new(nameof(ShipKind.ContreTorpilleur), 4, 0, nameof(Orientation.Horizontal)),
+            new(nameof(ShipKind.SousMarin), 6, 0, nameof(Orientation.Horizontal)),
+            new(nameof(ShipKind.Torpilleur), 8, 0, nameof(Orientation.Horizontal)),
+        };
+
+        var response = await _client.PostAsJsonAsync("/api/games", new CreateGameRequestDto(Placements: overlapping));
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal(nameof(FleetPlacementRejectionReason.OutOfGridOrOverlap), await response.ConflictCodeAsync());
+    }
+
+    [Fact]
+    public async Task PostGames_WithWrongPlacementCount_Returns400()
+    {
+        var tooFew = ValidStandardPlacements.Take(4).ToList();
+
+        var response = await _client.PostAsJsonAsync("/api/games", new CreateGameRequestDto(Placements: tooFew));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
     [Fact]
     public async Task PostGames_WithMalformedOptions_Returns400()
     {

@@ -102,6 +102,71 @@ public class GameTests
         Assert.Equal(1, game.ComputerBoard.ShotsReceived.Count(c => c == target));
     }
 
+    private static readonly (ShipKind Kind, Coordinate Origin, Orientation Orientation)[] ValidStandardPlacements =
+    [
+        (ShipKind.PorteAvions, new Coordinate(0, 0), Orientation.Horizontal),
+        (ShipKind.Croiseur, new Coordinate(2, 0), Orientation.Horizontal),
+        (ShipKind.ContreTorpilleur, new Coordinate(4, 0), Orientation.Horizontal),
+        (ShipKind.SousMarin, new Coordinate(6, 0), Orientation.Horizontal),
+        (ShipKind.Torpilleur, new Coordinate(8, 0), Orientation.Horizontal),
+    ];
+
+    [Fact]
+    public void TryCreateManual_WithValidStandardPlacements_CreatesGameWithThatExactHumanFleet()
+    {
+        var result = Game.TryCreateManual(Guid.NewGuid(), ValidStandardPlacements, new Random(1));
+
+        var created = Assert.IsType<CreateGameResult.Created>(result);
+        Assert.Equal(Fleet.Standard.Count, created.Game.HumanBoard.Ships.Count);
+        Assert.Contains(created.Game.HumanBoard.Ships, s => s.Kind == ShipKind.PorteAvions && s.Cells[0] == new Coordinate(0, 0));
+    }
+
+    [Fact]
+    public void TryCreateManual_ComputerBoardIsStillPlacedRandomly()
+    {
+        var result = Game.TryCreateManual(Guid.NewGuid(), ValidStandardPlacements, new Random(1));
+
+        var created = Assert.IsType<CreateGameResult.Created>(result);
+        Assert.Equal(Fleet.Standard.Count, created.Game.ComputerBoard.Ships.Count);
+        Assert.Equal(Fleet.Standard.Sum(f => f.Size), created.Game.ComputerBoard.Ships.Sum(s => s.Cells.Count));
+    }
+
+    [Fact]
+    public void TryCreateManual_WithWrongFleetComposition_ReturnsRejected_InvalidFleetComposition()
+    {
+        var placements = new (ShipKind Kind, Coordinate Origin, Orientation Orientation)[]
+        {
+            (ShipKind.Torpilleur, new Coordinate(0, 0), Orientation.Horizontal),
+            (ShipKind.Torpilleur, new Coordinate(2, 0), Orientation.Horizontal), // doublon, PorteAvions manquant
+            (ShipKind.ContreTorpilleur, new Coordinate(4, 0), Orientation.Horizontal),
+            (ShipKind.SousMarin, new Coordinate(6, 0), Orientation.Horizontal),
+            (ShipKind.Croiseur, new Coordinate(8, 0), Orientation.Horizontal),
+        };
+
+        var result = Game.TryCreateManual(Guid.NewGuid(), placements, new Random(1));
+
+        var rejected = Assert.IsType<CreateGameResult.Rejected>(result);
+        Assert.Equal(FleetPlacementRejectionReason.InvalidFleetComposition, rejected.Reason);
+    }
+
+    [Fact]
+    public void TryCreateManual_WithOverlappingPlacements_ReturnsRejected_OutOfGridOrOverlap()
+    {
+        var placements = new (ShipKind Kind, Coordinate Origin, Orientation Orientation)[]
+        {
+            (ShipKind.PorteAvions, new Coordinate(0, 0), Orientation.Horizontal),
+            (ShipKind.Croiseur, new Coordinate(0, 2), Orientation.Vertical), // chevauche PorteAvions
+            (ShipKind.ContreTorpilleur, new Coordinate(4, 0), Orientation.Horizontal),
+            (ShipKind.SousMarin, new Coordinate(6, 0), Orientation.Horizontal),
+            (ShipKind.Torpilleur, new Coordinate(8, 0), Orientation.Horizontal),
+        };
+
+        var result = Game.TryCreateManual(Guid.NewGuid(), placements, new Random(1));
+
+        var rejected = Assert.IsType<CreateGameResult.Rejected>(result);
+        Assert.Equal(FleetPlacementRejectionReason.OutOfGridOrOverlap, rejected.Reason);
+    }
+
     [Fact]
     public void ComputerShot_UsesInjectedStrategy()
     {

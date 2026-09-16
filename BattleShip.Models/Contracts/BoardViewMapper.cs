@@ -51,6 +51,10 @@ public static class BoardViewMapper
     public static GameOptions ToGameOptions(this CreateGameRequestDto request) =>
         new() { Radar = request.Radar, ShotMode = Enum.Parse<ShotMode>(request.ShotMode), SpecialWeapons = request.SpecialWeapons };
 
+    /// <summary>Suppose la requête déjà validée (CreateGameRequestDtoValidator) : un Kind/Orientation inconnu lève ici.</summary>
+    public static (ShipKind Kind, Coordinate Origin, Orientation Orientation) ToPlacementSpec(this ShipPlacementDto dto) =>
+        (Enum.Parse<ShipKind>(dto.Kind), new Coordinate(dto.Row, dto.Column), Enum.Parse<Orientation>(dto.Orientation));
+
     public static WeaponAction ToWeaponAction(this TorpedoRequestDto request) =>
         new WeaponAction.Torpedo(Enum.Parse<Edge>(request.From), request.Lane);
 

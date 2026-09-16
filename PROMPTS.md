@@ -79,3 +79,33 @@
 **Vérification** : 133 tests verts, `dotnet format --verify-no-changes` propre. Règles clés neutralisées une à une (anti-triche IA, tailles des navires coulés, quota radar, validation atomique de salve, munitions) : chaque neutralisation fait échouer au moins un test (voir `REVUE-IA.md`, ADR 0010 à 0012). Vérification dans le navigateur **non effectuée** : le certificat HTTPS de développement n'était pas approuvé par le navigateur utilisé.
 
 **Preuve** : `BattleShip.Tests/Engine/{ProbabilityTargeting,Radar,Salvo,Weapon}Tests.cs`, `BattleShip.Tests/Api/{GrpcScanZone,SalvoEndpoints,WeaponEndpoints}Tests.cs`.
+
+---
+
+## 2026-09-16 — Placement manuel de la flotte : architecture et interaction
+
+**Outil / modèle** : Claude Code (Sonnet 5), en mode planification puis implémentation.
+**Contexte** : le placement de la flotte humaine était toujours aléatoire ; `README.md` listait explicitement
+« personnalisation du placement de la flotte par le joueur » comme piste écartée. L'utilisateur a demandé de
+revenir dessus : offrir le choix entre placement aléatoire et placement à la main.
+**Prompt** : « aujourd'hui, le joueur ne peut pas placer ses bateaux à la main sur la grille. goal : avoir
+l'option de soit les placer aléatoirement soit les placer à la main » puis, après une première question sans
+réponse, « A ton avis, en prenant compte les consignes, quel est le mieux ? ».
+
+**Réponse résumée** : deux choix structurants posés au binôme plutôt que tranchés seuls — (1) regrouper le
+placement dans la requête de création de partie (pas de nouvel état serveur) vs. une phase serveur dédiée
+`AwaitingPlacement` avec un nouvel endpoint ; (2) interaction clic + bouton d'orientation (réutilise le pattern
+déjà présent dans `ActionBar.razor`) vs. glisser-déposer. Recommandation motivée par `CLAUDE.md` (règles et
+interface = décisions du binôme ; moins de nouveaux états à tester et expliquer ; pas d'interop JS absente du
+projet) : option groupée + clic/orientation.
+
+**Décision** : les deux recommandations retenues par l'utilisateur, après relecture du référentiel de cours
+(`csharp-school/Ressources Bataille Navale/Cours...md`, diapo 36) confirmant que le placement aléatoire n'est
+cité que pour le socle minimal — le placement manuel est une extension légitime, pas une réécriture du socle.
+
+**Vérification** : `Board.TryPlaceFleet`/`Game.TryCreateManual` développés en TDD (test écrit et vu échouer
+avant chaque implémentation) ; 143 tests xUnit verts au final. Scénario navigateur exécuté : mode "Aléatoire"
+inchangé, mode "À la main" avec un navire posé manuellement puis le reste complété via "Placer aléatoirement",
+partie créée avec exactement les positions choisies affichées sur "Votre plateau".
+
+**Preuve** : `BattleShip.Models/Domain/{Board,Game}.cs`, `BattleShip.API/{Endpoints/GameEndpoints,Storage/InMemoryGameStore,Validation/CreateGameRequestDtoValidator}.cs`, `BattleShip.App/{Game/PlacementViewModel.cs,Components/PlacementPanel.razor,Pages/Home.razor}`, `BattleShip.Tests/{Engine/BoardTests,Engine/GameTests,Api/GameEndpointsTests}.cs`, `docs/adr/0013-placement-manuel.md`.
