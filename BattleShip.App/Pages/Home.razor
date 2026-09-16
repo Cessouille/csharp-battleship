@@ -40,6 +40,25 @@
 </fieldset>
 
 <fieldset class="mb-3">
+    <legend class="h6">Difficulté de l'IA</legend>
+    <div class="form-check form-check-inline">
+        <input class="form-check-input" type="radio" name="ai-difficulty" id="difficulty-easy"
+               checked="@(_difficulty == AiDifficulty.Easy)" @onchange="() => _difficulty = AiDifficulty.Easy" />
+        <label class="form-check-label" for="difficulty-easy">Facile (tir au hasard)</label>
+    </div>
+    <div class="form-check form-check-inline">
+        <input class="form-check-input" type="radio" name="ai-difficulty" id="difficulty-medium"
+               checked="@(_difficulty == AiDifficulty.Medium)" @onchange="() => _difficulty = AiDifficulty.Medium" />
+        <label class="form-check-label" for="difficulty-medium">Moyenne (chasse/cible)</label>
+    </div>
+    <div class="form-check form-check-inline">
+        <input class="form-check-input" type="radio" name="ai-difficulty" id="difficulty-hard"
+               checked="@(_difficulty == AiDifficulty.Hard)" @onchange="() => _difficulty = AiDifficulty.Hard" />
+        <label class="form-check-label" for="difficulty-hard">Difficile (grille de probabilité)</label>
+    </div>
+</fieldset>
+
+<fieldset class="mb-3">
     <legend class="h6">Placement de votre flotte</legend>
     <div class="form-check form-check-inline">
         <input class="form-check-input" type="radio" name="placement-mode" id="placement-random"
@@ -74,6 +93,7 @@
     private bool _salvo;
     private bool _weapons;
     private bool _manualPlacement;
+    private AiDifficulty _difficulty = AiDifficulty.Hard;
     private readonly PlacementViewModel _placement = new();
     private string? _error;
 
@@ -93,7 +113,8 @@
                 Radar: _radar,
                 ShotMode: (_salvo ? ShotMode.Salvo : ShotMode.Classic).ToString(),
                 SpecialWeapons: _weapons,
-                Placements: _manualPlacement ? _placement.ToPlacementDtos() : null));
+                Placements: _manualPlacement ? _placement.ToPlacementDtos() : null,
+                Difficulty: _difficulty.ToString()));
             if (!response.IsSuccessStatusCode)
             {
                 _error = $"La création de la partie a échoué (HTTP {(int)response.StatusCode}).";

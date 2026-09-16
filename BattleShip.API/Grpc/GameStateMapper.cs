@@ -50,7 +50,8 @@ public static class GameStateMapper
             {
                 Radar = state.Options.Radar,
                 ShotMode = state.Options.ShotMode,
-                SpecialWeapons = state.Options.SpecialWeapons
+                SpecialWeapons = state.Options.SpecialWeapons,
+                Difficulty = state.Options.Difficulty
             },
             Actions = new PlayerActionsMessage
             {

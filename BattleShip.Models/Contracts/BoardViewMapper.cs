@@ -45,11 +45,17 @@ public static class BoardViewMapper
     public static ScanResultDto ToScanResultDto(this ScanResult scan) => new(scan.Origin.ToDto(), scan.ShipDetected);
 
     public static GameOptionsDto ToDto(this GameOptions options) =>
-        new(options.Radar, options.ShotMode.ToString(), options.SpecialWeapons);
+        new(options.Radar, options.ShotMode.ToString(), options.SpecialWeapons, options.Difficulty.ToString());
 
-    /// <summary>Suppose la requête déjà validée (CreateGameRequestDtoValidator) : un mode inconnu lève ici.</summary>
+    /// <summary>Suppose la requête déjà validée (CreateGameRequestDtoValidator) : un mode ou une difficulté inconnus lèvent ici.</summary>
     public static GameOptions ToGameOptions(this CreateGameRequestDto request) =>
-        new() { Radar = request.Radar, ShotMode = Enum.Parse<ShotMode>(request.ShotMode), SpecialWeapons = request.SpecialWeapons };
+        new()
+        {
+            Radar = request.Radar,
+            ShotMode = Enum.Parse<ShotMode>(request.ShotMode),
+            SpecialWeapons = request.SpecialWeapons,
+            Difficulty = Enum.Parse<AiDifficulty>(request.Difficulty)
+        };
 
     /// <summary>Suppose la requête déjà validée (CreateGameRequestDtoValidator) : un Kind/Orientation inconnu lève ici.</summary>
     public static (ShipKind Kind, Coordinate Origin, Orientation Orientation) ToPlacementSpec(this ShipPlacementDto dto) =>

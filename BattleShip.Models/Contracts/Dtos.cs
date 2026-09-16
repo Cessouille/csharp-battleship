@@ -42,9 +42,10 @@ public sealed record CreateGameRequestDto(
     bool Radar = false,
     string ShotMode = "Classic",
     bool SpecialWeapons = false,
-    IReadOnlyList<ShipPlacementDto>? Placements = null);
+    IReadOnlyList<ShipPlacementDto>? Placements = null,
+    string Difficulty = "Hard");
 
-public sealed record GameOptionsDto(bool Radar, string ShotMode, bool SpecialWeapons);
+public sealed record GameOptionsDto(bool Radar, string ShotMode, bool SpecialWeapons, string Difficulty);
 
 public sealed record ArsenalDto(int Torpedoes, int AirStrikes);
 

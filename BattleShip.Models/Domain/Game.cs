@@ -91,9 +91,20 @@ public sealed class Game
         HumanBoard = humanBoard;
         ComputerBoard = computerBoard;
         Options = options ?? GameOptions.Classic;
-        _targeting = targeting ?? new ProbabilityTargeting();
+        _targeting = targeting ?? CreateTargeting(Options.Difficulty);
         _rng = rng ?? Random.Shared;
     }
+
+    /// <summary>
+    /// Voir docs/adr/0015-ia-difficulte-reglable.md. Ignoré si un appelant passe explicitement une stratégie (tests).
+    /// Interne mais visible aux tests (InternalsVisibleTo) pour vérifier directement le choix par difficulté.
+    /// </summary>
+    internal static IComputerTargeting CreateTargeting(AiDifficulty difficulty) => difficulty switch
+    {
+        AiDifficulty.Easy => new RandomTargeting(),
+        AiDifficulty.Medium => new HuntTargetTargeting(),
+        _ => new ProbabilityTargeting()
+    };
 
     public Guid Id { get; }
     public GameOptions Options { get; }

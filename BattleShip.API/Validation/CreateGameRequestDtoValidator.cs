@@ -11,6 +11,8 @@ public sealed class CreateGameRequestDtoValidator : AbstractValidator<CreateGame
         // Comparaison aux noms déclarés, pas Enum.TryParse : ce dernier accepterait aussi "7" ou "classic".
         RuleFor(r => r.ShotMode).Must(mode => Enum.GetNames<ShotMode>().Contains(mode))
             .WithMessage($"ShotMode doit valoir l'une des valeurs : {string.Join(", ", Enum.GetNames<ShotMode>())}.");
+        RuleFor(r => r.Difficulty).Must(difficulty => Enum.GetNames<AiDifficulty>().Contains(difficulty))
+            .WithMessage($"Difficulty doit valoir l'une des valeurs : {string.Join(", ", Enum.GetNames<AiDifficulty>())}.");
 
         // La forme seulement : composition exacte de la flotte et chevauchement restent du ressort du domaine
         // (Game.TryCreateManual), même répartition FluentValidation/domaine que pour les tirs.

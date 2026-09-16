@@ -56,4 +56,14 @@ public class GrpcGameStateTests(WebApplicationFactory<Program> factory) : IClass
         Assert.True(reply.Options.Radar);
         Assert.Equal(RadarRules.ScansPerGame, reply.Actions.ScansRemaining);
     }
+
+    [Fact]
+    public async Task GetGameState_ReturnsDifficulty()
+    {
+        var created = await _restClient.CreateGameAsync(new CreateGameRequestDto(Difficulty: nameof(AiDifficulty.Easy)));
+
+        var reply = await _client.GetGameStateAsync(new GetGameStateRequest { GameId = created.GameId.ToString() });
+
+        Assert.Equal(nameof(AiDifficulty.Easy), reply.Options.Difficulty);
+    }
 }

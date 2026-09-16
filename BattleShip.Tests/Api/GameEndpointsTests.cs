@@ -74,6 +74,33 @@ public class GameEndpointsTests(WebApplicationFactory<Program> factory) : IClass
             Assert.Equal(nameof(MoveRejectionReason.AlreadyPlayed), await conflict.ConflictCodeAsync());
     }
 
+    [Fact]
+    public async Task PostGames_WithoutDifficulty_DefaultsToHard()
+    {
+        var game = await _client.CreateGameAsync(new CreateGameRequestDto());
+
+        Assert.Equal(nameof(AiDifficulty.Hard), game.Options.Difficulty);
+    }
+
+    [Theory]
+    [InlineData("Easy")]
+    [InlineData("Medium")]
+    [InlineData("Hard")]
+    public async Task PostGames_WithDifficulty_ReturnsSameValue(string difficulty)
+    {
+        var game = await _client.CreateGameAsync(new CreateGameRequestDto(Difficulty: difficulty));
+
+        Assert.Equal(difficulty, game.Options.Difficulty);
+    }
+
+    [Fact]
+    public async Task PostGames_WithUnknownDifficulty_Returns400()
+    {
+        var response = await _client.PostAsJsonAsync("/api/games", new CreateGameRequestDto(Difficulty: "Impossible"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
     private static readonly ShipPlacementDto[] ValidStandardPlacements =
     [
         new(nameof(ShipKind.PorteAvions), 0, 0, nameof(Orientation.Horizontal)),

@@ -48,6 +48,7 @@ message GameOptionsMessage {
   bool radar = 1;
   string shot_mode = 2; // "Classic" | "Salvo"
   bool special_weapons = 3;
+  string difficulty = 4; // "Easy" | "Medium" | "Hard"
 }
 
 message ArsenalMessage {

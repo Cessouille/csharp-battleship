@@ -13,7 +13,7 @@ public static class GrpcMapping
             string.IsNullOrEmpty(reply.Winner) ? null : reply.Winner,
             reply.MyBoard.ToMyBoardDto(),
             reply.OpponentBoard.ToOpponentBoardDto(),
-            new GameOptionsDto(reply.Options.Radar, reply.Options.ShotMode, reply.Options.SpecialWeapons),
+            new GameOptionsDto(reply.Options.Radar, reply.Options.ShotMode, reply.Options.SpecialWeapons, reply.Options.Difficulty),
             new PlayerActionsDto(
                 reply.Actions.ScansRemaining,
                 reply.Actions.SalvoSize,
