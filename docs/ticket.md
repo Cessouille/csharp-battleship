@@ -237,6 +237,226 @@ mêmes quotas.
 
 ---
 
+## Deuxième vague de propositions (2026-09-16)
+
+Le premier lot (TICKET-00 à TICKET-04) est entièrement livré. Cette deuxième vague part des limites déjà
+documentées dans `README.md` § *Limites connues* et des trous relevés par `docs/audits/documentation.md`,
+et non d'une nouvelle recherche web sur les variantes du jeu. **Aucun ordre d'implémentation n'est acté** :
+contrairement à la première vague, ces tickets restent au statut `proposé` avec leurs propres questions
+ouvertes tant que le binôme ne les a pas tranchées. À titre indicatif seulement (non décidé), un gradient
+plausible du moins invasif au plus invasif serait TICKET-08 → TICKET-07 → TICKET-06 → TICKET-10 → TICKET-09.
+
+Le placement manuel de flotte (ADR 0013), livré après le dernier arbitrage du 2026-09-15, n'avait jamais
+été documenté dans ce fichier : TICKET-05 comble cet oubli a posteriori.
+
+---
+
+## TICKET-05 — Placement manuel de la flotte (entrée rétroactive)
+
+**Statut** : livré (ADR 0013) — entrée ajoutée a posteriori pour réconcilier ce fichier avec le code ;
+aucune implémentation nouvelle n'est impliquée par cet ajout.
+
+**Description** : à la création, le joueur peut placer sa flotte manuellement au lieu du tirage aléatoire
+par défaut ; l'ordinateur reste toujours placé au hasard.
+
+**État actuel du code** :
+- `Game.TryCreateManual` renvoie `CreateGameResult.Created` / `Rejected` selon la validité du placement fourni.
+- `Board.TryPlaceFleet` rejoue les placements choisis par le client contre les tailles de navires possédées
+  par le serveur : il ne fait jamais confiance à une taille envoyée par le client.
+- `FleetPlacementRejectionReason` (`InvalidFleetComposition`, `OutOfGridOrOverlap`) porte les motifs de refus.
+- `Home.razor` propose un `PlacementPanel` pour ce mode, en plus du tirage aléatoire.
+
+**Impact technique** : aucune nouvelle phase serveur introduite — le placement est intégré à
+`POST /api/games`, décision documentée dans l'ADR 0013 lui-même ; contrat REST/gRPC inchangé par ailleurs.
+
+**Tests** : couverts par la suite existante (`BattleShip.Tests`), déjà verts.
+
+---
+
+## TICKET-06 — IA à difficulté réglable
+
+**Statut** : proposé
+
+**Description** : le joueur choisit à la création un niveau de difficulté de l'IA adverse, au lieu de la
+grille de probabilité systématique actuelle. Adresse la limite documentée dans le README : « l'adversaire
+n'a pas de niveau de difficulté réglable ».
+
+**État actuel du code** :
+- `Game` instancie toujours `ProbabilityTargeting` (ADR 0008) ; il n'existe aucun autre choix.
+- `IComputerTargeting` est une interface déjà pensée pour être substituable — c'est le seam à réutiliser.
+- La stratégie aléatoire uniforme d'origine (pré-ADR 0008) n'existe plus dans le code : à réintroduire
+  comme implémentation distincte si un palier « Facile » est retenu.
+- `PROMPTS.md` mentionne une stratégie chasse/cible intermédiaire, envisagée puis écartée au profit de la
+  grille de probabilité — candidate pour un éventuel palier « Moyen ».
+
+**Impact technique** :
+- `GameOptions` gagne un champ `Difficulty` (valeur par défaut = comportement actuel, pour ne rien casser).
+- Nouvelle(s) implémentation(s) `IComputerTargeting` dans `BattleShip.Models/Ai/` (ex. `RandomTargeting`).
+- `Game` sélectionne la stratégie à partir de `Options.Difficulty` au lieu de toujours instancier
+  `ProbabilityTargeting`.
+- Propagation dans `CreateGameRequestDto`/validateur, `GameStateDto`/`GameStateReply` (nouveau champ proto,
+  jamais renuméroté), sélecteur dans `Home.razor`.
+- **ADR obligatoire** (CLAUDE.md §3 : la stratégie de l'adversaire est structurante) — succession de
+  l'ADR 0008, pas un remplacement.
+
+**Questions à trancher** : deux paliers (Facile/Difficile) ou trois (+ Moyen) ; la difficulté reste-t-elle
+verrouillée à la création comme les autres options.
+
+**Tests attendus** : chaque stratégie ne cible jamais une case déjà jouée (à dupliquer sur le modèle de
+`ProbabilityTargetingTests`) ; nombre moyen de tirs pour couler la flotte plus élevé en « Facile » qu'en
+« Difficile » sur des graines fixes ; options relues identiques en REST et gRPC.
+
+---
+
+## TICKET-07 — Extension de gRPC-Web à un second flux mutant
+
+**Statut** : proposé
+
+**Description** : seuls `GetGameState` (lecture) et `ScanZone` (mutant, TICKET-02) passent par gRPC-Web ;
+les autres actions (tir classique, salve, armes) restent exclusivement REST. Migrer un second flux mutant
+élargirait la démonstration gRPC-Web au-delà d'un unique échange et vérifierait que le pattern de
+l'ADR 0010 (verrou + erreurs typées) se généralise sans réécriture.
+
+**État actuel du code** :
+- `GameEndpoints.cs` expose `/shots`, `/salvos`, `/torpedoes`, `/airstrikes` en REST uniquement.
+- `Protos/battleship.proto` ne contient que `GetGameState` et `ScanZone`.
+- Les DTO REST (`ShotRequestDto`, `SalvoRequestDto`, `WeaponRequestDto`) n'ont pas d'équivalent proto.
+
+**Impact technique** :
+- Nouveau `rpc` (ex. `PlaySalvo`) + validateur FluentValidation dédié, sur le modèle de
+  `ScanZoneRequestValidator`.
+- Bascule de l'appel correspondant dans `Game.razor` vers gRPC-Web.
+- ADR : mise à jour du statut de l'ADR 0005/0010, ou nouvel ADR selon l'ampleur retenue.
+
+**Questions à trancher** : quel flux migrer (Salve, plus proche du scan par sa forme « lot de coordonnées »,
+ou Arme) ; conserver le double chemin REST + gRPC ou migrer complètement ; quelle erreur typée démontrer
+pour ne pas répéter exactement le cas déjà couvert par le scan.
+
+**Tests attendus** : intégration gRPC succès + erreurs typées dans le style de `GrpcScanZoneTests.cs` ;
+non-régression du chemin REST si conservé.
+
+---
+
+## TICKET-08 — Renforcement des tests de concurrence réelle
+
+**Statut** : livré
+
+**Description** : `BattleShip.Tests/Engine/GameTests.cs` avait déjà un test de concurrence réelle (pas
+simulée) mais limité au tir classique sur une seule cellule
+(`PlayHumanShot_ConcurrentCallsOnSameCell_OnlyOneIsAccepted`, barrière `ManualResetEventSlim` + 32 tâches
++ `Task.WhenAll`). Ce ticket étend ce pattern à deux angles morts : les compteurs partagés (quotas) et le
+pipeline HTTP complet, plutôt qu'un unique appel direct sur `Game`.
+
+**État actuel du code (avant ce ticket)** : le test existant ne couvrait ni la décrémentation d'un quota
+(scans, munitions) sous contention, ni la concurrence à travers `WebApplicationFactory`/Minimal API — les
+deux étant des candidats plausibles à un bug de double-décompte que l'ADR 0007 corrige structurellement
+mais qu'aucun test ne vérifiait dans ces deux configurations.
+
+**Réalisé** :
+- `Engine/RadarTests.cs` — `PlayHumanScan_ConcurrentCallsBeyondQuota_OnlyQuotaIsAccepted` : 32 scans
+  concurrents sur une partie à flotte complète (radar, quota de 2), vérifie exactement
+  `RadarRules.ScansPerGame` acceptés et le reste rejeté `NoScansLeft`.
+- `Engine/WeaponTests.cs` — `PlayHumanWeapon_ConcurrentTorpedoCalls_OnlyOneIsAccepted` : 32 torpilles
+  concurrentes avec 1 seule munition, vérifie exactement une acceptée et le reste rejeté `NoAmmoLeft`.
+- `Api/GameEndpointsTests.cs` — `PostShots_ConcurrentRequestsOnSameCell_OnlyOneSucceeds` : 16 requêtes
+  HTTP `POST /shots` concurrentes sur la même cellule à travers le vrai pipeline (validation,
+  `InMemoryGameStore`, `Game.Locked`), vérifie un seul 200 et le reste en 409 `AlreadyPlayed`.
+
+Pas d'ADR (renforcement de tests, aucun changement de contrat ni de comportement).
+
+**Écarté de ce ticket** : les tests de composants Blazor (bUnit) — voir TICKET-11 ci-dessous, reporté à
+part vu le surcoût (nouveau framework de test jamais utilisé dans le projet) pour une valeur plus faible
+qu'un test de règle métier.
+
+---
+
+## TICKET-11 — Tests de composants Blazor (bUnit)
+
+**Statut** : proposé
+
+**Description** : ajouter des tests de rendu/interaction sur les composants Razor de `BattleShip.App`
+(actuellement non testés autrement que manuellement au navigateur), alors que le front est un livrable
+imposé par le cours. Séparé de TICKET-08 parce que c'est un nouveau framework de test à introduire dans
+le projet (`bunit`), pas une extension d'un pattern déjà en place.
+
+**État actuel du code** : `BattleShip.Tests.csproj` ne référence aucun package bUnit ; aucun test de
+composant Razor n'existe.
+
+**Impact technique** : ajout du package `bunit` ; quelques tests ciblés sur `Home.razor` (formulaire
+d'options + placement manuel) et `Game.razor` (bascule de mode d'action, affichage des erreurs de
+conflit). Pas d'ADR requis.
+
+**Questions à trancher** : périmètre (couverture large ou quelques scénarios clés, vu le temps restant du
+projet).
+
+**Tests attendus** : ils sont l'objet même du ticket.
+
+---
+
+## TICKET-09 — Grille et flotte configurables
+
+**Statut** : proposé
+
+**Description** : le joueur choisit à la création la taille de grille et/ou la composition de flotte, au
+lieu des valeurs fixes actuelles (10×10, `Fleet.Standard` à 5 navires). CLAUDE.md liste ce choix comme une
+décision du binôme, jamais exploitée dans le code à ce jour.
+
+**État actuel du code** : `Coordinate`/`BoardGrid.Size` et `Fleet.Standard` sont des constantes utilisées
+à de nombreux endroits (placement aléatoire et manuel, mapping DTO, `BoardGrid.razor`, énumération des
+tailles de navires restants par `ProbabilityTargeting`) — un changement de taille toucherait potentiellement
+chacun de ces points.
+
+**Impact technique** (le plus invasif de cette vague, comparable par son ampleur à la piste « tétrominos »
+déjà écartée pour cette raison) :
+- `GameOptions` gagnerait `GridSize`/`FleetComposition`, remplaçant les constantes actuelles par des
+  valeurs portées par la partie.
+- `Board`, `Fleet`, `Coordinate` deviendraient paramétrables plutôt que figés par constante statique —
+  changement de représentation d'état plus large que les tickets précédents.
+- `ProbabilityTargeting` devrait lire la composition réelle de la partie plutôt qu'une constante.
+- `BoardGrid.razor`/`PlacementPanel` à adapter à une grille de taille variable.
+- **ADR obligatoire** ; le binôme doit explicitement juger si l'effort est justifié pour le temps restant.
+
+**Questions à trancher** : bornes acceptables (grille et flotte min/max) ; symétrie avec la flotte de
+l'ordinateur ; compatibilité avec le placement manuel (ADR-0013) sur une grille de taille variable.
+
+**Tests attendus** : placement rejeté si la flotte ne tient pas dans la grille choisie ; IA calcule ses
+densités sur la flotte réellement configurée (pas `Fleet.Standard` codé en dur) ; options invalides
+(grille trop petite pour la flotte demandée) rejetées à la création.
+
+---
+
+## TICKET-10 — Journal de partie affiché en direct
+
+**Statut** : proposé
+
+**Description** : afficher pendant la partie un journal chronologique des coups joués (tirs, scans,
+salves, armes, des deux côtés), non persistant. **Distinct** de « l'historique et les statistiques »
+inter-parties explicitement écarté dans le README (qui visait une persistance de partie en partie) : ce
+journal ne vit que dans la session de jeu affichée.
+
+**État actuel du code** : `Game`/`Board` ne conservent que l'état courant (cases jouées, navires coulés) ;
+aucun historique ordonné des coups n'est stocké. Le front ne fait qu'afficher l'état courant via
+`GetGameState`, sans accumuler les `TurnResultDto` reçus.
+
+**Impact technique** :
+- Option la plus simple : accumulation **côté client uniquement**, dans l'état Blazor de `Game.razor`
+  (liste des `TurnResultDto` reçus au fil des appels) — aucun changement de contrat serveur, pas d'ADR.
+- Limite assumée dans ce cas : le journal disparaît aussi au rechargement de page en cours de partie
+  (`GetGameState` ne renvoie que l'état courant, pas l'historique).
+- Alternative plus lourde : `Game` conserve une liste ordonnée de résolutions pour survivre au
+  rechargement — implique un ADR de changement de représentation d'état.
+- UI : nouveau panneau listant les entrées (ex. « Tour 4 : tir en (B,3) → touché »).
+
+**Questions à trancher** : le journal doit-il survivre à un rechargement de page (stockage côté `Game`,
+ADR requis) ou seulement à la session d'affichage courante (pas d'ADR) — cette décision fixe si le ticket
+reste peu invasif ou rejoint la catégorie des changements de représentation d'état.
+
+**Tests attendus** : si stockage serveur retenu, test xUnit vérifiant un historique complet et ordonné
+après une séquence mêlant tir/scan/salve/arme ; si accumulation côté client, test de composant (bUnit, cf.
+TICKET-08 si retenu) vérifiant l'affichage au fil des appels.
+
+---
+
 ## Piste écartée pour l'instant
 
 ### Navires en formes libres façon Tetris (tétrominos au lieu de segments droits)
