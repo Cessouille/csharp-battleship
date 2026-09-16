@@ -131,3 +131,25 @@ Proposition rejetée dans sa forme : le corps devient **obligatoire** (`{}` = pa
 
 **Preuves et limites**
 Suite complète verte après correction. Limite : la raison précise du rejet par le routage (politique de correspondance sur le type de contenu) est déduite du journal, pas confirmée dans le code source d'ASP.NET Core.
+
+---
+
+## Revue : l'architecture recommandée pour le placement manuel s'appuyait-elle sur le référentiel du cours, ou seulement sur l'inférence de l'IA ?
+
+**Proposition examinée**
+Pour TICKET « placement manuel de la flotte » (`docs/adr/0013-placement-manuel.md`), l'IA a d'abord posé le choix d'architecture (placement groupé dans `POST /api/games` vs. nouvelle phase serveur `AwaitingPlacement` avec endpoint dédié) via un outil de choix multiple, avec une recommandation motivée uniquement par `CLAUDE.md` (le fichier de règles du dépôt, pas le support de cours lui-même).
+
+**Hypothèse à vérifier**
+Que classer le placement manuel comme « extension légitime, pas réécriture du socle » — et donc justifier une architecture plus légère — est réellement fondé sur l'énoncé du cours, et pas seulement une inférence plausible à partir d'un document dérivé (`CLAUDE.md`) que l'IA a elle-même rédigé lors d'une session précédente.
+
+**Expérience**
+L'utilisateur a refusé à deux reprises de trancher sur la seule base des options présentées (« The user wants to clarify these questions », sans réponse) et a demandé explicitement : « A ton avis, en prenant compte les consignes, quel est le mieux ? », puis, après une nouvelle tentative de confirmation par choix multiple restée sans suite : « prends en compte @csharp-school\ ». Plutôt que de répéter la même recommandation, l'IA a lu le support de cours source (`csharp-school/Ressources Bataille Navale/Cours C  ASP.NET - Bataille Navale - autonomie.md`, diapos 5, 6 et 36) au lieu de s'appuyer uniquement sur sa propre synthèse antérieure dans `CLAUDE.md`. Résultat attendu avant lecture : si l'hypothèse est fausse, le support de cours devrait soit imposer une architecture de placement précise, soit ne rien dire de la distinction socle/extension invoquée.
+
+**Résultat réellement observé**
+Diapo 36 (« Spécification 1 — le moteur de jeu ») liste « créer deux grilles et placer les flottes aléatoirement » parmi les *comportements attendus du socle*, sans l'exprimer comme une interdiction d'ajouter un autre mode. Diapo 6 (« Ce qui est imposé, ce qui est libre ») classe explicitement « composition de la flotte » et « interface et expérience de jeu » dans la colonne « vos choix, votre responsabilité ». Rien dans le support ne mandate un mécanisme serveur particulier (phase d'attente, endpoint dédié) pour le placement.
+
+**Décision et justification**
+Recommandation confirmée inchangée (placement groupé à la création, sans nouvel état serveur ; interaction clic + orientation), mais désormais appuyée sur une citation directe du référentiel plutôt que sur la seule reformulation de `CLAUDE.md` — la vérification a changé la nature de la preuve, pas la conclusion. Le contexte tiré du support a été intégré au « Contexte » du plan et à l'ADR 0013, avec la diapo citée.
+
+**Preuves et limites**
+`docs/adr/0013-placement-manuel.md` (section Contexte, référence diapo 36), plan de la session (`~/.claude/plans/contexte-aujourd-hui-le-agile-fern.md`). Limite : l'absence de mandat explicite dans le support ne prouve pas que l'architecture choisie est la meilleure possible, seulement qu'aucune des deux options proposées ne viole une contrainte du socle — le choix final entre les deux reste un arbitrage d'ingénierie (moins d'état à tester/expliquer), pas une obligation du cours.
