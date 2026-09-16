@@ -480,3 +480,6 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Rapports d'audit générés localement (skills .claude/skills/audit-*) : pas besoin de les versionner
+docs/audits/
