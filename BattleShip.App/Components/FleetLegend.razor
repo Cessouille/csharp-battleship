@@ -1,15 +1,35 @@
 @namespace BattleShip.App.Components
 @using BattleShip.Models.Contracts
+@using BattleShip.Models.Domain
 
 <ul class="list-unstyled small">
-    @foreach (var ship in Ships)
+    @foreach (var ship in Entries)
     {
         <li class="@(ship.IsSunk ? "text-decoration-line-through text-muted" : "")">
-            @ship.Kind (@ship.Cells.Count) — @(ship.IsSunk ? "coulé" : "en jeu")
+            @ship.Kind (@ship.Size) — @(ship.IsSunk ? "coulé" : "en jeu")
         </li>
     }
 </ul>
 
 @code {
-    [Parameter, EditorRequired] public IReadOnlyList<ShipViewDto> Ships { get; set; } = [];
+    [Parameter, EditorRequired] public IReadOnlyList<FleetEntry> Entries { get; set; } = [];
+
+    public sealed record FleetEntry(string Kind, int Size, bool IsSunk);
+
+    /// <summary>Flotte propre : positions toujours connues, dérivée directement des navires réels.</summary>
+    public static IReadOnlyList<FleetEntry> FromShips(IReadOnlyList<ShipViewDto> ships) =>
+        ships.Select(s => new FleetEntry(s.Kind, s.Cells.Count, s.IsSunk)).ToList();
+
+    /// <summary>
+    /// Flotte adverse : la composition (Fleet.Standard) est publique, mais seuls les navires coulés sont
+    /// connus individuellement — un navire encore en jeu n'apparaît ici qu'avec son type et sa taille,
+    /// jamais ses cases (voir BoardViewMapper.ToOpponentBoardDto).
+    /// </summary>
+    public static IReadOnlyList<FleetEntry> FromOpponentView(IReadOnlyList<ShipViewDto> sunkShips)
+    {
+        var sunkKinds = sunkShips.Select(s => s.Kind).ToHashSet();
+        return Fleet.Standard
+            .Select(f => new FleetEntry(f.Kind.ToString(), f.Size, sunkKinds.Contains(f.Kind.ToString())))
+            .ToList();
+    }
 }

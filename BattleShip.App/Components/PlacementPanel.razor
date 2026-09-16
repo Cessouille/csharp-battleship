@@ -29,7 +29,7 @@
 
     <BoardGrid Size="Model.Size" Cells="Model.ToGrid()" Interactive="@(Model.NextShip is not null)"
                CanClick="CanClick" OnCellClick="OnCellClickAsync" />
-    <FleetLegend Ships="Model.PlacedShips" />
+    <FleetLegend Entries="FleetLegend.FromShips(Model.PlacedShips)" />
 </div>
 
 @code {

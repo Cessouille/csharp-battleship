@@ -1,0 +1,64 @@
+.alert {
+    border-radius: 1.25rem;
+    border: none;
+    font-weight: 500;
+}
+
+.alert-info {
+    background: linear-gradient(120deg, #FBE7F6, var(--lilas, #E9C6FF));
+    color: var(--encre-prune, #4A1942);
+}
+
+.alert-success {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(120deg, var(--rose-vif, #FF3E9D), var(--rose-fonce, #B0177A));
+    color: white;
+}
+
+    .alert-success::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image:
+            radial-gradient(circle, white 1px, transparent 1.5px),
+            radial-gradient(circle, var(--dore, #FFD966) 1.5px, transparent 2px),
+            radial-gradient(circle, white 1px, transparent 1.5px);
+        background-size: 40px 40px, 70px 70px, 55px 55px;
+        background-position: 10px 10px, 60px 5px, 30px 30px;
+        opacity: 0.6;
+        animation: sparkle-drift 6s linear infinite;
+        pointer-events: none;
+    }
+
+    .alert-success > * {
+        position: relative;
+    }
+
+    .alert-success .btn-primary {
+        background-color: white;
+        border-color: white;
+        color: var(--rose-fonce, #B0177A);
+    }
+
+        .alert-success .btn-primary:hover {
+            background-color: var(--dore, #FFD966);
+            border-color: var(--dore, #FFD966);
+            color: var(--encre-prune, #4A1942);
+        }
+
+@keyframes sparkle-drift {
+    from {
+        background-position: 10px 10px, 60px 5px, 30px 30px;
+    }
+
+    to {
+        background-position: 10px 50px, 60px 45px, 30px 70px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .alert-success::before {
+        animation: none;
+    }
+}

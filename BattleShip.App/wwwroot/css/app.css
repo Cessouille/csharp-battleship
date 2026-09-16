@@ -1,5 +1,21 @@
+:root {
+    --rose-vif: #FF3E9D;
+    --rose-fonce: #B0177A;
+    --lilas: #E9C6FF;
+    --dore: #FFD966;
+    --encre-prune: #4A1942;
+    --creme: #FFF6FB;
+}
+
 html, body {
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-family: 'Quicksand', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    color: var(--encre-prune);
+    background: linear-gradient(160deg, #FFE6F5 0%, #F3E3FF 100%);
+}
+
+h1, h2, h3, .navbar-brand {
+    font-family: 'Fredoka', 'Quicksand', sans-serif;
+    font-weight: 600;
 }
 
 h1:focus {
@@ -7,21 +23,64 @@ h1:focus {
 }
 
 a, .btn-link {
-    color: #0071c1;
+    color: var(--rose-fonce);
 }
 
 .btn-primary {
     color: #fff;
-    background-color: #1b6ec2;
-    border-color: #1861ac;
+    background-color: var(--rose-vif);
+    border-color: var(--rose-fonce);
+    border-radius: 999px;
+    font-weight: 600;
+}
+
+    .btn-primary:hover, .btn-primary:active {
+        background-color: var(--rose-fonce);
+        border-color: var(--rose-fonce);
+    }
+
+.btn-outline-primary {
+    color: var(--rose-fonce);
+    border-color: var(--rose-vif);
+    border-radius: 999px;
+}
+
+    .btn-outline-primary:hover, .btn-check:checked + .btn-outline-primary {
+        background-color: var(--rose-vif);
+        border-color: var(--rose-vif);
+    }
+
+.btn-outline-secondary {
+    border-radius: 999px;
 }
 
 .btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem var(--rose-vif);
+}
+
+.form-check-input:checked {
+    background-color: var(--rose-vif);
+    border-color: var(--rose-vif);
 }
 
 .content {
     padding-top: 1.1rem;
+}
+
+.alert {
+    border-radius: 1.25rem;
+}
+
+fieldset.mb-3 {
+    background-color: rgba(255, 255, 255, 0.5);
+    border: 1px solid var(--lilas);
+    border-radius: 1.25rem;
+    padding: 1rem 1.25rem;
+}
+
+legend.h6 {
+    color: var(--rose-fonce);
+    font-family: 'Fredoka', sans-serif;
 }
 
 .valid.modified:not([type=checkbox]) {
@@ -85,7 +144,7 @@ a, .btn-link {
     }
 
         .loading-progress circle:last-child {
-            stroke: #1b6ec2;
+            stroke: var(--rose-vif);
             stroke-dasharray: calc(3.141 * var(--blazor-load-percentage, 0%) * 0.8), 500%;
             transition: stroke-dasharray 0.05s ease-in-out;
         }
@@ -102,7 +161,7 @@ a, .btn-link {
     }
 
 code {
-    color: #c02d76;
+    color: var(--rose-fonce);
 }
 
 .form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {

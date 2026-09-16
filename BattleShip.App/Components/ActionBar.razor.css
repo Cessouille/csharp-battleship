@@ -1,0 +1,20 @@
+.form-select {
+    border-radius: 999px;
+    border-color: var(--lilas, #E9C6FF);
+}
+
+    .form-select:focus {
+        border-color: var(--rose-vif, #FF3E9D);
+        box-shadow: 0 0 0 0.2rem rgba(255, 62, 157, 0.25);
+    }
+
+.btn-danger {
+    border-radius: 999px;
+    background-color: var(--rose-fonce, #B0177A);
+    border-color: var(--rose-fonce, #B0177A);
+}
+
+    .btn-danger:hover {
+        background-color: var(--encre-prune, #4A1942);
+        border-color: var(--encre-prune, #4A1942);
+    }

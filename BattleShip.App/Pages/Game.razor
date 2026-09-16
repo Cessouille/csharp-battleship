@@ -48,14 +48,14 @@ else
         <div class="col-auto">
             <h2 class="h5">Votre plateau</h2>
             <BoardGrid Size="_state.MyBoard.Size" Cells="_state.MyBoard.ToGrid()" Interactive="false" />
-            <FleetLegend Ships="_state.MyBoard.Ships" />
+            <FleetLegend Entries="FleetLegend.FromShips(_state.MyBoard.Ships)" />
         </div>
         <div class="col-auto">
             <h2 class="h5">Plateau adverse</h2>
             <BoardGrid Size="_state.OpponentBoard.Size" Cells="_state.OpponentBoard.ToGrid()"
                        Interactive="@(_state.Status == "InProgress" && !_busy)" CanClick="CanClick"
                        Selected="_selection" OnCellClick="OnOpponentCellClickAsync" />
-            <FleetLegend Ships="_state.OpponentBoard.SunkShips" />
+            <FleetLegend Entries="FleetLegend.FromOpponentView(_state.OpponentBoard.SunkShips)" />
         </div>
     </div>
 }

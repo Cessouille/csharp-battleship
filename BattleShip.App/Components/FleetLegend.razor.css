@@ -1,0 +1,19 @@
+ul {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    margin-top: 0.5rem;
+}
+
+li {
+    width: fit-content;
+    background-color: var(--creme, #FFF6FB);
+    border: 1px solid var(--lilas, #E9C6FF);
+    border-radius: 999px;
+    padding: 0.2rem 0.75rem;
+}
+
+li.text-decoration-line-through {
+    background-color: transparent;
+    border-color: #ddd;
+}
