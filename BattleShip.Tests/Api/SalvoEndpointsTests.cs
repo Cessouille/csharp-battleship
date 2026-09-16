@@ -1,6 +1,5 @@
 using System.Net;
 using System.Net.Http.Json;
-using System.Text.Json;
 using BattleShip.Models.Contracts;
 using BattleShip.Models.Domain;
 using BattleShip.Tests.TestData;
@@ -17,12 +16,6 @@ public class SalvoEndpointsTests(WebApplicationFactory<Program> factory) : IClas
 
     private static SalvoRequestDto Salvo(params (int Row, int Column)[] cells) =>
         new(cells.Select(c => new ShotRequestDto(c.Row, c.Column)).ToList());
-
-    private static async Task<string?> ConflictCodeAsync(HttpResponseMessage response)
-    {
-        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        return body.RootElement.GetProperty("code").GetString();
-    }
 
     [Fact]
     public async Task PostGames_SalvoMode_ExposesSalvoSizeOfWholeFleet()
@@ -65,7 +58,7 @@ public class SalvoEndpointsTests(WebApplicationFactory<Program> factory) : IClas
         var response = await _client.PostAsJsonAsync($"/api/games/{game.GameId}/salvos", Salvo((5, 0), (5, 1)));
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-        Assert.Equal(nameof(MoveRejectionReason.WrongSalvoSize), await ConflictCodeAsync(response));
+        Assert.Equal(nameof(MoveRejectionReason.WrongSalvoSize), await response.ConflictCodeAsync());
         var state = await _client.GetFromJsonAsync<GameStateDto>($"/api/games/{game.GameId}");
         Assert.Empty(state!.OpponentBoard.Misses);
         Assert.Empty(state.OpponentBoard.Hits);
@@ -109,7 +102,7 @@ public class SalvoEndpointsTests(WebApplicationFactory<Program> factory) : IClas
         var response = await _client.PostAsJsonAsync($"/api/games/{game.GameId}/salvos", Salvo((5, 0)));
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-        Assert.Equal(nameof(MoveRejectionReason.WrongShotMode), await ConflictCodeAsync(response));
+        Assert.Equal(nameof(MoveRejectionReason.WrongShotMode), await response.ConflictCodeAsync());
     }
 
     [Fact]
@@ -120,7 +113,7 @@ public class SalvoEndpointsTests(WebApplicationFactory<Program> factory) : IClas
         var response = await _client.PostAsJsonAsync($"/api/games/{game.GameId}/shots", new ShotRequestDto(0, 0));
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-        Assert.Equal(nameof(MoveRejectionReason.WrongShotMode), await ConflictCodeAsync(response));
+        Assert.Equal(nameof(MoveRejectionReason.WrongShotMode), await response.ConflictCodeAsync());
     }
 
     [Fact]

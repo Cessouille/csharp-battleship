@@ -116,7 +116,9 @@ public sealed class ProbabilityTargeting : IComputerTargeting
         }
     }
 
-    private static HashSet<Coordinate> PlayedCells(OpponentBoardDto view) =>
+    /// <summary>Interne mais visible aux tests (voir InternalsVisibleTo) : les doublures de stratégie de test
+    /// réutilisent cette règle plutôt que de la recopier, pour ne pas diverger de celle réellement utilisée en jeu.</summary>
+    internal static HashSet<Coordinate> PlayedCells(OpponentBoardDto view) =>
         view.Hits.Concat(view.Misses).Concat(view.SunkShips.SelectMany(s => s.Cells)).Select(ToCoordinate).ToHashSet();
 
     private static Coordinate[]? Segment(Coordinate origin, Orientation orientation, int length, int gridSize)

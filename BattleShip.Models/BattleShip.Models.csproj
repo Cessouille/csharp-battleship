@@ -6,4 +6,10 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <!-- Permet à BattleShip.Tests de réutiliser des règles internes (ex. ProbabilityTargeting.PlayedCells) au
+         lieu de les recopier dans des doublures de test qui pourraient diverger silencieusement. -->
+    <InternalsVisibleTo Include="BattleShip.Tests" />
+  </ItemGroup>
+
 </Project>

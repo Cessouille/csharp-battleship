@@ -9,8 +9,7 @@ public sealed class RandomTargeting : IComputerTargeting
 {
     public IReadOnlyList<Coordinate> PickTargets(OpponentBoardDto view, int count, Random rng)
     {
-        var played = view.Hits.Concat(view.Misses).Concat(view.SunkShips.SelectMany(s => s.Cells))
-            .Select(c => new Coordinate(c.Row, c.Column)).ToHashSet();
+        var played = ProbabilityTargeting.PlayedCells(view);
         var untried = Enumerable.Range(0, view.Size * view.Size)
             .Select(i => new Coordinate(i / view.Size, i % view.Size))
             .Where(c => !played.Contains(c))
@@ -31,8 +30,7 @@ public sealed class BottomUpTargeting : IComputerTargeting
 {
     public IReadOnlyList<Coordinate> PickTargets(OpponentBoardDto view, int count, Random rng)
     {
-        var played = view.Hits.Concat(view.Misses).Concat(view.SunkShips.SelectMany(s => s.Cells))
-            .Select(c => new Coordinate(c.Row, c.Column)).ToHashSet();
+        var played = ProbabilityTargeting.PlayedCells(view);
         return Enumerable.Range(0, view.Size * view.Size).Reverse()
             .Select(i => new Coordinate(i / view.Size, i % view.Size))
             .Where(c => !played.Contains(c))

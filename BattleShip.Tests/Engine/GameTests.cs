@@ -5,14 +5,7 @@ namespace BattleShip.Tests.Engine;
 
 public class GameTests
 {
-    private static Game CreateGameWithSingleCellShips()
-    {
-        var human = new Board();
-        human.TryPlaceShip(ShipKind.Torpilleur, new Coordinate(0, 0), Orientation.Horizontal, 1);
-        var computer = new Board();
-        computer.TryPlaceShip(ShipKind.Torpilleur, new Coordinate(9, 9), Orientation.Horizontal, 1);
-        return new Game(Guid.NewGuid(), human, computer);
-    }
+    private static Game CreateGameWithSingleCellShips() => TestGames.SingleCellShips();
 
     [Fact]
     public void PlayHumanShot_OnAlreadyPlayedCell_IsRejected_AndDoesNotMutateState()

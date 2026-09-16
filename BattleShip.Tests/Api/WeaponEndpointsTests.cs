@@ -1,6 +1,5 @@
 using System.Net;
 using System.Net.Http.Json;
-using System.Text.Json;
 using BattleShip.Models.Contracts;
 using BattleShip.Models.Domain;
 using BattleShip.Tests.TestData;
@@ -14,12 +13,6 @@ public class WeaponEndpointsTests(WebApplicationFactory<Program> factory) : ICla
 
     private Task<CreateGameResponseDto> CreateWeaponsGameAsync() =>
         _client.CreateGameAsync(new CreateGameRequestDto(SpecialWeapons: true));
-
-    private static async Task<string?> ConflictCodeAsync(HttpResponseMessage response)
-    {
-        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        return body.RootElement.GetProperty("code").GetString();
-    }
 
     [Fact]
     public async Task PostGames_WithWeapons_ExposesBothArsenals()
@@ -46,7 +39,7 @@ public class WeaponEndpointsTests(WebApplicationFactory<Program> factory) : ICla
         Assert.Equal(0, turn.Actions.Arsenal.Torpedoes);
 
         Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
-        Assert.Equal(nameof(MoveRejectionReason.NoAmmoLeft), await ConflictCodeAsync(second));
+        Assert.Equal(nameof(MoveRejectionReason.NoAmmoLeft), await second.ConflictCodeAsync());
     }
 
     [Theory]
@@ -97,7 +90,7 @@ public class WeaponEndpointsTests(WebApplicationFactory<Program> factory) : ICla
         var response = await _client.PostAsJsonAsync($"/api/games/{game.GameId}/torpedoes", new TorpedoRequestDto("Left", 0));
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-        Assert.Equal(nameof(MoveRejectionReason.WeaponsDisabled), await ConflictCodeAsync(response));
+        Assert.Equal(nameof(MoveRejectionReason.WeaponsDisabled), await response.ConflictCodeAsync());
     }
 
     [Fact]

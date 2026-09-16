@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Text.Json;
 using BattleShip.Grpc;
 using BattleShip.Models.Contracts;
 using Grpc.Net.Client;
@@ -22,5 +23,12 @@ public static class ApiClients
         var response = await client.PostAsJsonAsync("/api/games", request ?? new CreateGameRequestDto());
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadFromJsonAsync<CreateGameResponseDto>())!;
+    }
+
+    /// <summary>Extrait le champ "code" du corps JSON `{ code: "..." }` renvoyé par un 409 Conflict.</summary>
+    public static async Task<string?> ConflictCodeAsync(this HttpResponseMessage response)
+    {
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        return body.RootElement.GetProperty("code").GetString();
     }
 }
