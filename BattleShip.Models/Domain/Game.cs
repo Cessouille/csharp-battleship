@@ -125,74 +125,67 @@ public sealed class Game
     /// verrou d'instance (<see cref="Locked{TResult}"/> est réentrant pour le même thread) : deux tirs
     /// concurrents sur la même partie s'exécutent en série, jamais entrelacés.
     /// </summary>
-    public MoveResult PlayHumanShot(Coordinate target)
+    public MoveResult PlayHumanShot(Coordinate target) => Guarded(() =>
     {
-        lock (_gate)
-        {
-            if (Status == GameStatus.Finished)
-                return new MoveResult.Rejected(MoveRejectionReason.GameAlreadyFinished);
+        if (Options.ShotMode != ShotMode.Classic)
+            return new MoveResult.Rejected(MoveRejectionReason.WrongShotMode);
 
-            if (Options.ShotMode != ShotMode.Classic)
-                return new MoveResult.Rejected(MoveRejectionReason.WrongShotMode);
-
-            return PlayHumanVolley([target], expectedCount: 1);
-        }
-    }
+        return PlayHumanVolley([target], expectedCount: 1);
+    });
 
     /// <summary>
     /// Salve du joueur en mode Salvo. Le lot entier est validé avant le moindre tir : un seul élément invalide et
     /// rien n'est appliqué. Les tirs sont ensuite résolus dans l'ordre du lot, en s'arrêtant dès que le dernier
     /// navire adverse coule (aucun coup après la fin de partie).
     /// </summary>
-    public MoveResult PlayHumanSalvo(IReadOnlyList<Coordinate> targets)
+    public MoveResult PlayHumanSalvo(IReadOnlyList<Coordinate> targets) => Guarded(() =>
     {
-        lock (_gate)
-        {
-            if (Status == GameStatus.Finished)
-                return new MoveResult.Rejected(MoveRejectionReason.GameAlreadyFinished);
+        if (Options.ShotMode != ShotMode.Salvo)
+            return new MoveResult.Rejected(MoveRejectionReason.WrongShotMode);
 
-            if (Options.ShotMode != ShotMode.Salvo)
-                return new MoveResult.Rejected(MoveRejectionReason.WrongShotMode);
-
-            return PlayHumanVolley(targets, HumanSalvoSize);
-        }
-    }
+        return PlayHumanVolley(targets, HumanSalvoSize);
+    });
 
     /// <summary>Le scan remplace le tir du tour : l'ordinateur riposte ensuite comme après un tir.</summary>
-    public MoveResult PlayHumanScan(Coordinate origin)
+    public MoveResult PlayHumanScan(Coordinate origin) => Guarded(() =>
     {
-        lock (_gate)
-        {
-            if (Status == GameStatus.Finished)
-                return new MoveResult.Rejected(MoveRejectionReason.GameAlreadyFinished);
+        if (!Options.Radar)
+            return new MoveResult.Rejected(MoveRejectionReason.RadarDisabled);
 
-            if (!Options.Radar)
-                return new MoveResult.Rejected(MoveRejectionReason.RadarDisabled);
+        if (!RadarRules.ZoneFits(origin))
+            return new MoveResult.Rejected(MoveRejectionReason.OutOfGrid);
 
-            if (!RadarRules.ZoneFits(origin))
-                return new MoveResult.Rejected(MoveRejectionReason.OutOfGrid);
+        if (ScansRemaining <= 0)
+            return new MoveResult.Rejected(MoveRejectionReason.NoScansLeft);
 
-            if (ScansRemaining <= 0)
-                return new MoveResult.Rejected(MoveRejectionReason.NoScansLeft);
-
-            var scan = ComputerBoard.ReceiveScan(origin);
-            return CompleteTurn([], scan, null);
-        }
-    }
+        var scan = ComputerBoard.ReceiveScan(origin);
+        return CompleteTurn([], scan, null);
+    });
 
     /// <summary>Une arme remplace tout le tour du joueur, salve comprise ; l'ordinateur riposte ensuite.</summary>
-    public MoveResult PlayHumanWeapon(WeaponAction action)
+    public MoveResult PlayHumanWeapon(WeaponAction action) => Guarded(() =>
+    {
+        if (ValidateWeapon(ComputerBoard, HumanArsenal, action) is { } reason)
+            return new MoveResult.Rejected(reason);
+
+        HumanArsenal.Consume(action.Kind);
+        return CompleteTurn(ComputerBoard.ReceiveWeapon(action), null, action.Kind);
+    });
+
+    /// <summary>
+    /// Squelette commun à tout point d'entrée de coup du joueur : verrouille la partie, refuse tout coup une fois
+    /// la partie terminée, puis délègue à <paramref name="body"/> pour la validation/résolution spécifique à
+    /// l'action. Centralise le verrou + le contrôle de fin de partie pour qu'une future action de tour n'ait pas
+    /// à les recopier.
+    /// </summary>
+    private MoveResult Guarded(Func<MoveResult> body)
     {
         lock (_gate)
         {
             if (Status == GameStatus.Finished)
                 return new MoveResult.Rejected(MoveRejectionReason.GameAlreadyFinished);
 
-            if (ValidateWeapon(ComputerBoard, HumanArsenal, action) is { } reason)
-                return new MoveResult.Rejected(reason);
-
-            HumanArsenal.Consume(action.Kind);
-            return CompleteTurn(ComputerBoard.ReceiveWeapon(action), null, action.Kind);
+            return body();
         }
     }
 

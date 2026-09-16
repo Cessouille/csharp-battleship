@@ -25,42 +25,32 @@ public static class GameEndpoints
                 : Results.NotFound());
 
         group.MapPost("/{gameId:guid}/shots", (Guid gameId, ShotRequestDto request, InMemoryGameStore store) =>
-        {
-            var game = store.Find(gameId);
-            if (game is null)
-                return Results.NotFound();
-
-            // PlayHumanShot verrouille déjà à lui seul, mais Locked est réentrant : ce bloc englobe aussi le
-            // mapping DTO qui suit, pour qu'aucune autre requête sur ce gameId ne s'intercale entre le tir et
-            // la lecture de son résultat.
-            return game.Locked(() => ToTurnResponse(game, game.PlayHumanShot(new Coordinate(request.Row, request.Column))));
-        }).AddEndpointFilter<ValidationFilter<ShotRequestDto>>();
+            PlayMove(store, gameId, game => game.PlayHumanShot(new Coordinate(request.Row, request.Column))))
+            .AddEndpointFilter<ValidationFilter<ShotRequestDto>>();
 
         group.MapPost("/{gameId:guid}/salvos", (Guid gameId, SalvoRequestDto request, InMemoryGameStore store) =>
-        {
-            var game = store.Find(gameId);
-            if (game is null)
-                return Results.NotFound();
-
-            var targets = request.Shots.Select(s => new Coordinate(s.Row, s.Column)).ToList();
-            return game.Locked(() => ToTurnResponse(game, game.PlayHumanSalvo(targets)));
-        }).AddEndpointFilter<ValidationFilter<SalvoRequestDto>>();
+            PlayMove(store, gameId, game =>
+                game.PlayHumanSalvo(request.Shots.Select(s => new Coordinate(s.Row, s.Column)).ToList())))
+            .AddEndpointFilter<ValidationFilter<SalvoRequestDto>>();
 
         group.MapPost("/{gameId:guid}/torpedoes", (Guid gameId, TorpedoRequestDto request, InMemoryGameStore store) =>
-            PlayWeapon(store, gameId, request.ToWeaponAction()))
+            PlayMove(store, gameId, game => game.PlayHumanWeapon(request.ToWeaponAction())))
             .AddEndpointFilter<ValidationFilter<TorpedoRequestDto>>();
 
         group.MapPost("/{gameId:guid}/airstrikes", (Guid gameId, AirStrikeRequestDto request, InMemoryGameStore store) =>
-            PlayWeapon(store, gameId, request.ToWeaponAction()))
+            PlayMove(store, gameId, game => game.PlayHumanWeapon(request.ToWeaponAction())))
             .AddEndpointFilter<ValidationFilter<AirStrikeRequestDto>>();
     }
 
-    private static IResult PlayWeapon(InMemoryGameStore store, Guid gameId, WeaponAction action)
+    // PlayHumanShot/Salvo/Weapon verrouillent déjà chacun à eux seuls, mais Locked est réentrant : ce bloc englobe
+    // aussi le mapping DTO qui suit, pour qu'aucune autre requête sur ce gameId ne s'intercale entre le coup et
+    // la lecture de son résultat.
+    private static IResult PlayMove(InMemoryGameStore store, Guid gameId, Func<Game, MoveResult> move)
     {
         var game = store.Find(gameId);
         return game is null
             ? Results.NotFound()
-            : game.Locked(() => ToTurnResponse(game, game.PlayHumanWeapon(action)));
+            : game.Locked(() => ToTurnResponse(game, move(game)));
     }
 
     private static IResult ToTurnResponse(Game game, MoveResult result) =>
