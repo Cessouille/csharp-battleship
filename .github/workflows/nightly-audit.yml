@@ -2,7 +2,12 @@ name: Nightly audit
 
 on:
   schedule:
-    - cron: "10 8 * * *" # ~04:10 America/Toronto
+    # Le cron GitHub est en UTC et ne connaît pas les fuseaux : 04h00 à Paris
+    # vaut 02:00 UTC en heure d'été (CEST, UTC+2) et 03:00 UTC en heure d'hiver
+    # (CET, UTC+1). Les deux créneaux sont déclarés, et le garde du job `prepare`
+    # ignore celui qui ne correspond pas à l'offset de Paris du jour.
+    - cron: "0 2 * * *" # 04h00 à Paris en heure d'été
+    - cron: "0 3 * * *" # 04h00 à Paris en heure d'hiver
   workflow_dispatch:
     inputs:
       audit:
@@ -23,9 +28,35 @@ jobs:
   prepare:
     runs-on: ubuntu-latest
     outputs:
+      proceed: ${{ steps.guard.outputs.proceed }}
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
+      # Les deux crons se déclenchent chaque nuit ; un seul correspond à 04h00
+      # heure de Paris. On compare l'offset UTC de Paris du jour au cron qui a
+      # déclenché ce run — et non l'heure courante, qui dérive avec les retards
+      # de planification de GitHub.
+      - id: guard
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          TRIGGERING_CRON: ${{ github.event.schedule }}
+        run: |
+          if [ "$EVENT_NAME" != "schedule" ]; then
+            echo "proceed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          case "$(TZ=Europe/Paris date +%z)" in
+            +0200) EXPECTED="0 2 * * *" ;; # heure d'été
+            *)     EXPECTED="0 3 * * *" ;; # heure d'hiver
+          esac
+          if [ "$TRIGGERING_CRON" = "$EXPECTED" ]; then
+            echo "proceed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Cron '$TRIGGERING_CRON' ignoré : à cette période, 04h00 à Paris correspond à '$EXPECTED'."
+          fi
+
       - id: set-matrix
+        if: steps.guard.outputs.proceed == 'true'
         env:
           SELECTED: ${{ inputs.audit || 'all' }}
         run: |
@@ -48,6 +79,7 @@ jobs:
 
   audit:
     needs: prepare
+    if: needs.prepare.outputs.proceed == 'true'
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
@@ -83,8 +115,8 @@ jobs:
           retention-days: 1
 
   package-report:
-    needs: audit
-    if: always()
+    needs: [prepare, audit]
+    if: always() && needs.prepare.outputs.proceed == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Download audit reports
