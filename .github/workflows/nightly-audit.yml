@@ -103,7 +103,7 @@ jobs:
           claude_args: |
             --model claude-sonnet-5
             --allowedTools "${{ matrix.audit.allowed_tools }}"
-            --max-turns 60
+            --max-turns 100
 
       - name: Upload ${{ matrix.audit.id }} report
         if: always()
