@@ -62,6 +62,32 @@ public class RadarTests
     }
 
     [Fact]
+    public async Task PlayHumanScan_ConcurrentCallsBeyondQuota_OnlyQuotaIsAccepted()
+    {
+        // Le quota de scans est un compteur partagé (ScansRemaining) : sans le verrou de Game.Guarded, des scans
+        // concurrents pourraient tous lire un quota disponible avant qu'aucun ne l'ait consommé, et le dépasser.
+        // Flotte complète (pas TestGames.SingleCellShips) pour qu'un ou deux tirs de riposte ne puisse pas terminer
+        // la partie et fausser l'assertion sur NoScansLeft.
+        var game = Game.CreateRandom(Guid.NewGuid(), new Random(7), WithRadar);
+        using var start = new ManualResetEventSlim(false);
+
+        var tasks = Enumerable.Range(0, 32)
+            .Select(_ => Task.Run(() =>
+            {
+                start.Wait();
+                return game.PlayHumanScan(new Coordinate(0, 0));
+            }))
+            .ToArray();
+        start.Set();
+        var results = await Task.WhenAll(tasks);
+
+        Assert.Equal(RadarRules.ScansPerGame, results.Count(r => r is MoveResult.Accepted));
+        Assert.Equal(32 - RadarRules.ScansPerGame,
+            results.Count(r => r is MoveResult.Rejected { Reason: MoveRejectionReason.NoScansLeft }));
+        Assert.Equal(RadarRules.ScansPerGame, game.ComputerBoard.ScansReceived.Count);
+    }
+
+    [Fact]
     public void PlayHumanScan_WithRadarDisabled_IsRejected()
     {
         var game = TestGames.SingleCellShips();

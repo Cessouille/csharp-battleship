@@ -104,6 +104,31 @@ public class WeaponTests
         Assert.Equal(humanShotsBefore, game.HumanBoard.ShotsReceived.Count);
     }
 
+    [Fact]
+    public async Task PlayHumanWeapon_ConcurrentTorpedoCalls_OnlyOneIsAccepted()
+    {
+        // Les munitions sont un compteur partagé (Arsenal.Torpedoes) : sans le verrou de Game.Guarded, deux
+        // torpilles concurrentes pourraient toutes deux lire une munition disponible avant que l'une ne l'ait
+        // consommée. Random(0) dans CreateGame rend la résolution déterministe malgré la concurrence : un seul
+        // appel exécute réellement le corps protégé par le verrou à la fois.
+        var game = CreateGame();
+        using var start = new ManualResetEventSlim(false);
+
+        var tasks = Enumerable.Range(0, 32)
+            .Select(_ => Task.Run(() =>
+            {
+                start.Wait();
+                return game.PlayHumanWeapon(new WeaponAction.Torpedo(Edge.Left, 5));
+            }))
+            .ToArray();
+        start.Set();
+        var results = await Task.WhenAll(tasks);
+
+        Assert.Single(results, r => r is MoveResult.Accepted);
+        Assert.Equal(31, results.Count(r => r is MoveResult.Rejected { Reason: MoveRejectionReason.NoAmmoLeft }));
+        Assert.Equal(0, game.HumanArsenal.Torpedoes);
+    }
+
     [Theory]
     [InlineData(0, 8, Orientation.Horizontal)]
     [InlineData(8, 0, Orientation.Vertical)]

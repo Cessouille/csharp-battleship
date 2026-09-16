@@ -47,6 +47,33 @@ public class GameEndpointsTests(WebApplicationFactory<Program> factory) : IClass
         Assert.Equal(game.Options, state!.Options);
     }
 
+    [Fact]
+    public async Task PostShots_ConcurrentRequestsOnSameCell_OnlyOneSucceeds()
+    {
+        // Même risque que Engine/GameTests.PlayHumanShot_ConcurrentCallsOnSameCell_OnlyOneIsAccepted, mais à
+        // travers le pipeline HTTP complet (FluentValidation, InMemoryGameStore, Game.Locked) plutôt qu'un appel
+        // direct sur Game : vérifie que le verrou tient aussi quand les requêtes traversent Minimal API.
+        var game = await CreateGameAsync();
+        var target = new ShotRequestDto(0, 0);
+        using var start = new ManualResetEventSlim(false);
+
+        var tasks = Enumerable.Range(0, 16)
+            .Select(_ => Task.Run(async () =>
+            {
+                start.Wait();
+                return await _client.PostAsJsonAsync($"/api/games/{game.GameId}/shots", target);
+            }))
+            .ToArray();
+        start.Set();
+        var responses = await Task.WhenAll(tasks);
+
+        Assert.Single(responses, r => r.StatusCode == HttpStatusCode.OK);
+        var conflicts = responses.Where(r => r.StatusCode == HttpStatusCode.Conflict).ToArray();
+        Assert.Equal(15, conflicts.Length);
+        foreach (var conflict in conflicts)
+            Assert.Equal(nameof(MoveRejectionReason.AlreadyPlayed), await conflict.ConflictCodeAsync());
+    }
+
     private static readonly ShipPlacementDto[] ValidStandardPlacements =
     [
         new(nameof(ShipKind.PorteAvions), 0, 0, nameof(Orientation.Horizontal)),
