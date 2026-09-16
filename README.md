@@ -22,19 +22,19 @@ Depuis la racine du dépôt, dans deux terminaux distincts (API puis App) :
 
 ```
 dotnet build BattleShip.slnx
-dotnet run --project BattleShip.API --launch-profile https   # https://localhost:7186
-dotnet run --project BattleShip.App --launch-profile https   # https://localhost:7206
+dotnet run --project BattleShip.API --launch-profile https   # https://localhost:8080
+dotnet run --project BattleShip.App --launch-profile https   # https://localhost:3000
 ```
 
-Ouvrir `https://localhost:7206` dans le navigateur. L'API doit être lancée en premier (l'App en dépend pour REST et gRPC-Web).
+Ouvrir `https://localhost:3000` dans le navigateur. L'API doit être lancée en premier (l'App en dépend pour REST et gRPC-Web).
 
 ### Hot-reload en développement
 
 Pour recompiler et relancer automatiquement à chaque modification, remplacer `dotnet run` par `dotnet watch` (mêmes projets, mêmes ports) :
 
 ```
-dotnet watch --project BattleShip.API --launch-profile https   # https://localhost:7186
-dotnet watch --project BattleShip.App --launch-profile https   # https://localhost:7206
+dotnet watch --project BattleShip.API --launch-profile https   # https://localhost:8080
+dotnet watch --project BattleShip.App --launch-profile https   # https://localhost:3000
 ```
 
 - API : le serveur redémarre automatiquement à chaque modification d'un fichier `.cs`.

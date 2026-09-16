@@ -13,7 +13,7 @@ builder.Services.AddValidatorsFromAssemblyContaining<ShotRequestDtoValidator>();
 builder.Services.AddSingleton<InMemoryGameStore>();
 builder.Services.AddGrpc();
 builder.Services.AddCors(options => options.AddPolicy(AppCorsPolicy, policy => policy
-    .WithOrigins("https://localhost:7206", "http://localhost:5209")
+    .WithOrigins("https://localhost:3000", "http://localhost:5209")
     .AllowAnyMethod()
     .AllowAnyHeader()
     .WithExposedHeaders("Grpc-Status", "Grpc-Message")));

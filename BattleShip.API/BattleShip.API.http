@@ -1,4 +1,4 @@
-@api = https://localhost:7186
+@api = https://localhost:8080
 
 ### Créer une partie classique (corps JSON obligatoire, {} = partie classique)
 POST {{api}}/api/games

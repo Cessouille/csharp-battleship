@@ -81,11 +81,11 @@ Relevés dans les `Properties/launchSettings.json` — ce sont ceux à utiliser,
 
 | Projet | Profil `https` | Profil `http` |
 |---|---|---|
-| `BattleShip.API` | `https://localhost:7186` | `http://localhost:5119` |
-| `BattleShip.App` | `https://localhost:7206` | `http://localhost:5209` |
+| `BattleShip.API` | `https://localhost:8080` | `http://localhost:5119` |
+| `BattleShip.App` | `https://localhost:3000` | `http://localhost:5209` |
 
 Trois endroits dépendent de ces valeurs et doivent rester cohérents entre eux :
-1. `BattleShip.App/Program.cs` — `HttpClient.BaseAddress` pointe aujourd'hui sur `builder.HostEnvironment.BaseAddress`, c'est-à-dire l'App elle-même (scaffold par défaut). À repointer sur l'API pour tout appel réel.
+1. `BattleShip.App/Program.cs` — `HttpClient.BaseAddress` (et le `GrpcChannel`) pointent sur `ApiBaseAddress`, configurable via `wwwroot/appsettings.json`, avec `https://localhost:8080/` comme valeur par défaut si absente.
 2. La politique CORS côté API — doit autoriser l'origine de l'App, sinon le navigateur bloque la réponse alors que le serveur a répondu correctement.
 3. L'adresse du `GrpcChannel` côté App (`GrpcWebHandler`) — même origine que l'API.
 
@@ -129,8 +129,8 @@ dotnet dev-certs https --trust
 dotnet --version                       # doit annoncer un SDK 10.x
 dotnet build BattleShip.slnx
 dotnet test BattleShip.Tests
-dotnet run --project BattleShip.API --launch-profile https   # https://localhost:7186
-dotnet run --project BattleShip.App --launch-profile https   # https://localhost:7206
+dotnet run --project BattleShip.API --launch-profile https   # https://localhost:8080
+dotnet run --project BattleShip.App --launch-profile https   # https://localhost:3000
 
 # Diagnostic quand un build ou un test échoue sans message exploitable (diapo 22) :
 dotnet build -v normal
