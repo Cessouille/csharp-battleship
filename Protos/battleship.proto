@@ -6,6 +6,8 @@ service Battleship {
   rpc GetGameState (GetGameStateRequest) returns (GameStateReply);
   // Action mutante : consomme un scan et le tour du joueur (voir docs/adr/0010-radar-grpc-web.md).
   rpc ScanZone (ScanZoneRequest) returns (ScanZoneReply);
+  // Action mutante : salve du joueur en mode Salvo, en plus du POST /salvos REST (voir docs/adr/0014-salvo-grpc-web.md).
+  rpc PlaySalvo (PlaySalvoRequest) returns (PlaySalvoReply);
 }
 
 message GetGameStateRequest {
@@ -84,6 +86,18 @@ message ShotResultMessage {
 
 message ScanZoneReply {
   ScanMessage scan = 1;
+  repeated ShotResultMessage computer_shots = 2;
+  GameStateReply state = 3;
+  string computer_weapon = 4; // "" si l'ordinateur a répliqué par un tir classique
+}
+
+message PlaySalvoRequest {
+  string game_id = 1;
+  repeated CoordinateMessage shots = 2;
+}
+
+message PlaySalvoReply {
+  repeated ShotResultMessage player_shots = 1;
   repeated ShotResultMessage computer_shots = 2;
   GameStateReply state = 3;
   string computer_weapon = 4; // "" si l'ordinateur a répliqué par un tir classique

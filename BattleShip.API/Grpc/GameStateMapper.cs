@@ -25,6 +25,19 @@ public static class GameStateMapper
         return reply;
     }
 
+    public static PlaySalvoReply ToPlaySalvoReply(Game game, TurnResult turn)
+    {
+        var dto = game.ToTurnResultDto(turn);
+        var reply = new PlaySalvoReply
+        {
+            State = ToGameStateReply(game),
+            ComputerWeapon = dto.ComputerWeapon ?? string.Empty
+        };
+        reply.PlayerShots.AddRange(dto.PlayerShots.Select(ToShotResultMessage));
+        reply.ComputerShots.AddRange(dto.ComputerShots.Select(ToShotResultMessage));
+        return reply;
+    }
+
     private static GameStateReply ToGameStateReply(GameStateDto state) =>
         new()
         {

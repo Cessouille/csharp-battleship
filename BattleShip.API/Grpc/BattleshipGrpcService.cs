@@ -9,7 +9,8 @@ namespace BattleShip.API.Grpc;
 public sealed class BattleshipGrpcService(
     InMemoryGameStore store,
     IValidator<GetGameStateRequest> getGameStateValidator,
-    IValidator<ScanZoneRequest> scanZoneValidator)
+    IValidator<ScanZoneRequest> scanZoneValidator,
+    IValidator<PlaySalvoRequest> playSalvoValidator)
     : Battleship.BattleshipBase
 {
     public override async Task<GameStateReply> GetGameState(GetGameStateRequest request, ServerCallContext context)
@@ -31,6 +32,21 @@ public sealed class BattleshipGrpcService(
             MoveResult.Rejected rejected => throw ToRpcException(rejected.Reason),
             _ => throw new RpcException(new Status(StatusCode.Internal, "Résultat de coup inattendu."))
         });
+    }
+
+    /// <summary>Transport alternatif au POST /salvos REST (docs/adr/0014-salvo-grpc-web.md) : les deux chemins coexistent.</summary>
+    public override async Task<PlaySalvoReply> PlaySalvo(PlaySalvoRequest request, ServerCallContext context)
+    {
+        await ValidateOrThrowAsync(playSalvoValidator, request, context);
+        var game = FindOrThrow(request.GameId);
+
+        return game.Locked(() =>
+            game.PlayHumanSalvo(request.Shots.Select(s => new Coordinate(s.Row, s.Column)).ToList()) switch
+            {
+                MoveResult.Accepted accepted => GameStateMapper.ToPlaySalvoReply(game, accepted.Turn),
+                MoveResult.Rejected rejected => throw ToRpcException(rejected.Reason),
+                _ => throw new RpcException(new Status(StatusCode.Internal, "Résultat de coup inattendu."))
+            });
     }
 
     private static async Task ValidateOrThrowAsync<T>(IValidator<T> validator, T request, ServerCallContext context)
@@ -72,5 +88,28 @@ public sealed class ScanZoneRequestValidator : AbstractValidator<ScanZoneRequest
             .WithMessage($"row doit être compris entre 0 et {BoardGrid.Size - RadarRules.ZoneSize} (la zone {RadarRules.ZoneSize}x{RadarRules.ZoneSize} doit tenir dans la grille).");
         RuleFor(r => r.Column).InclusiveBetween(0, BoardGrid.Size - RadarRules.ZoneSize)
             .WithMessage($"column doit être compris entre 0 et {BoardGrid.Size - RadarRules.ZoneSize} (la zone {RadarRules.ZoneSize}x{RadarRules.ZoneSize} doit tenir dans la grille).");
+    }
+}
+
+/// <summary>
+/// Contrôles de forme uniquement, comme SalvoRequestDtoValidator côté REST : la taille exacte attendue dépend de
+/// l'état de la partie et reste vérifiée par Game.PlayHumanSalvo (FailedPrecondition, pas une erreur de validation).
+/// </summary>
+public sealed class PlaySalvoRequestValidator : AbstractValidator<PlaySalvoRequest>
+{
+    public PlaySalvoRequestValidator()
+    {
+        RuleFor(r => r.GameId).NotEmpty().Must(id => Guid.TryParse(id, out _))
+            .WithMessage("game_id doit être un GUID valide.");
+        RuleFor(r => r.Shots).Cascade(CascadeMode.Stop).NotEmpty()
+            .Must(shots => shots.Count <= Fleet.Standard.Count)
+            .WithMessage($"Une salve compte au plus {Fleet.Standard.Count} tirs.")
+            .Must(shots => shots.Select(s => (s.Row, s.Column)).Distinct().Count() == shots.Count)
+            .WithMessage("Une salve ne peut pas viser deux fois la même case.");
+        RuleForEach(r => r.Shots).ChildRules(shot =>
+        {
+            shot.RuleFor(s => s.Row).InclusiveBetween(0, BoardGrid.Size - 1);
+            shot.RuleFor(s => s.Column).InclusiveBetween(0, BoardGrid.Size - 1);
+        });
     }
 }
