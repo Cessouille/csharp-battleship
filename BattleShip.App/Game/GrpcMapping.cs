@@ -18,7 +18,25 @@ public static class GrpcMapping
                 reply.Actions.ScansRemaining,
                 reply.Actions.SalvoSize,
                 new ArsenalDto(reply.Actions.Arsenal.Torpedoes, reply.Actions.Arsenal.AirStrikes),
-                new ArsenalDto(reply.Actions.OpponentArsenal.Torpedoes, reply.Actions.OpponentArsenal.AirStrikes)));
+                new ArsenalDto(reply.Actions.OpponentArsenal.Torpedoes, reply.Actions.OpponentArsenal.AirStrikes)),
+            reply.History.Select(ToJournalEntryDto).ToList());
+
+    public static JournalEntryDto ToJournalEntryDto(this JournalEntryMessage message) =>
+        new(
+            message.PlayerShots.Select(ToShotResultDto).ToList(),
+            message.PlayerScan is null ? null : message.PlayerScan.ToScanResultDto(),
+            string.IsNullOrEmpty(message.PlayerWeapon) ? null : message.PlayerWeapon,
+            message.ComputerShots.Select(ToShotResultDto).ToList(),
+            string.IsNullOrEmpty(message.ComputerWeapon) ? null : message.ComputerWeapon);
+
+    public static ShotResultDto ToShotResultDto(this ShotResultMessage message) =>
+        new(
+            ToCoordinateDto(message.Target),
+            Enum.Parse<ShotOutcomeDto>(message.Outcome),
+            string.IsNullOrEmpty(message.SunkShipKind) ? null : message.SunkShipKind);
+
+    public static ScanResultDto ToScanResultDto(this ScanMessage message) =>
+        new(ToCoordinateDto(message.Origin), message.ShipDetected);
 
     public static MyBoardDto ToMyBoardDto(this MyBoardMessage message) =>
         new(

@@ -71,6 +71,15 @@ message GameStateReply {
   OpponentBoardMessage opponent_board = 5;
   GameOptionsMessage options = 6;
   PlayerActionsMessage actions = 7;
+  repeated JournalEntryMessage history = 8; // TICKET-10 : journal chronologique, survit au rechargement
+}
+
+message JournalEntryMessage {
+  repeated ShotResultMessage player_shots = 1;
+  ScanMessage player_scan = 2;
+  string player_weapon = 3;   // "" si aucune
+  repeated ShotResultMessage computer_shots = 4;
+  string computer_weapon = 5; // "" si aucune
 }
 
 message ScanZoneRequest {

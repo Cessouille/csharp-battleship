@@ -1,3 +1,4 @@
+using System.Net.Http.Json;
 using BattleShip.Grpc;
 using BattleShip.Models.Contracts;
 using BattleShip.Models.Domain;
@@ -55,6 +56,18 @@ public class GrpcGameStateTests(WebApplicationFactory<Program> factory) : IClass
 
         Assert.True(reply.Options.Radar);
         Assert.Equal(RadarRules.ScansPerGame, reply.Actions.ScansRemaining);
+    }
+
+    [Fact]
+    public async Task GetGameState_AfterAShot_ReturnsHistoryEntry()
+    {
+        var gameId = await CreateGameAsync();
+        await _restClient.PostAsJsonAsync($"/api/games/{gameId}/shots", new ShotRequestDto(0, 0));
+
+        var reply = await _client.GetGameStateAsync(new GetGameStateRequest { GameId = gameId.ToString() });
+
+        var entry = Assert.Single(reply.History);
+        Assert.Equal(0, Assert.Single(entry.PlayerShots).Target.Row);
     }
 
     [Fact]

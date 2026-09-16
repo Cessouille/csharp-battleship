@@ -78,6 +78,7 @@ public sealed class Game
 
     private readonly IComputerTargeting _targeting;
     private readonly Random _rng;
+    private readonly List<TurnResult> _history = [];
 
     public Game(
         Guid id,
@@ -114,6 +115,14 @@ public sealed class Game
     public Board ComputerBoard { get; }
     public PlayerId? Winner { get; private set; }
     public GameStatus Status => Winner is null ? GameStatus.InProgress : GameStatus.Finished;
+
+    /// <summary>
+    /// Journal chronologique des tours joués (TICKET-10, voir docs/adr/0016-journal-de-partie.md), pour survivre
+    /// au rechargement de la page (renvoyé par GetGameState). Alimenté au même chokepoint que la résolution d'un
+    /// tour (<see cref="CompleteTurn"/>), jamais retiré : un coup refusé n'y apparaît jamais (aucun MoveResult.Rejected
+    /// n'atteint CompleteTurn).
+    /// </summary>
+    public IReadOnlyList<TurnResult> History => _history;
 
     /// <summary>Le quota se déduit des scans déjà enregistrés sur le plateau adverse : pas de compteur séparé qui pourrait diverger.</summary>
     public int ScansRemaining => Options.Radar ? RadarRules.ScansPerGame - ComputerBoard.ScansReceived.Count : 0;
@@ -306,18 +315,23 @@ public sealed class Game
     /// <summary>Fin commune à toute action du joueur déjà appliquée : victoire immédiate, sinon riposte de l'ordinateur.</summary>
     private MoveResult CompleteTurn(IReadOnlyList<ShotResolution> playerShots, ScanResult? playerScan, WeaponKind? playerWeapon)
     {
+        TurnResult turn;
         if (ComputerBoard.AllSunk)
         {
             Winner = PlayerId.Human;
-            return new MoveResult.Accepted(new TurnResult(playerShots, playerScan, playerWeapon, [], null, Winner, Status));
+            turn = new TurnResult(playerShots, playerScan, playerWeapon, [], null, Winner, Status);
+        }
+        else
+        {
+            var (computerShots, computerWeapon) = PlayComputerTurn();
+            if (HumanBoard.AllSunk)
+                Winner = PlayerId.Computer;
+
+            turn = new TurnResult(playerShots, playerScan, playerWeapon, computerShots, computerWeapon, Winner, Status);
         }
 
-        var (computerShots, computerWeapon) = PlayComputerTurn();
-        if (HumanBoard.AllSunk)
-            Winner = PlayerId.Computer;
-
-        return new MoveResult.Accepted(
-            new TurnResult(playerShots, playerScan, playerWeapon, computerShots, computerWeapon, Winner, Status));
+        _history.Add(turn);
+        return new MoveResult.Accepted(turn);
     }
 
     /// <summary>

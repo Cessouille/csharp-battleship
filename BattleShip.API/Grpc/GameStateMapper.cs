@@ -38,8 +38,9 @@ public static class GameStateMapper
         return reply;
     }
 
-    private static GameStateReply ToGameStateReply(GameStateDto state) =>
-        new()
+    private static GameStateReply ToGameStateReply(GameStateDto state)
+    {
+        var reply = new GameStateReply
         {
             GameId = state.GameId.ToString(),
             Status = state.Status,
@@ -61,6 +62,22 @@ public static class GameStateMapper
                 OpponentArsenal = ToArsenalMessage(state.Actions.OpponentArsenal)
             }
         };
+        reply.History.AddRange(state.History.Select(ToJournalEntryMessage));
+        return reply;
+    }
+
+    private static JournalEntryMessage ToJournalEntryMessage(JournalEntryDto entry)
+    {
+        var message = new JournalEntryMessage
+        {
+            PlayerScan = entry.PlayerScan is null ? null : ToScanMessage(entry.PlayerScan),
+            PlayerWeapon = entry.PlayerWeapon ?? string.Empty,
+            ComputerWeapon = entry.ComputerWeapon ?? string.Empty
+        };
+        message.PlayerShots.AddRange(entry.PlayerShots.Select(ToShotResultMessage));
+        message.ComputerShots.AddRange(entry.ComputerShots.Select(ToShotResultMessage));
+        return message;
+    }
 
     private static MyBoardMessage ToMyBoardMessage(MyBoardDto board)
     {

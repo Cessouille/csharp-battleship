@@ -101,6 +101,22 @@ public class GameEndpointsTests(WebApplicationFactory<Program> factory) : IClass
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
+    [Fact]
+    public async Task PostShots_AppendsToHistory_SurvivingASubsequentGet()
+    {
+        var game = await CreateGameAsync();
+
+        var response = await _client.PostAsJsonAsync($"/api/games/{game.GameId}/shots", new ShotRequestDto(0, 0));
+        var turn = await response.Content.ReadFromJsonAsync<TurnResultDto>();
+
+        var turnEntry = Assert.Single(turn!.History);
+        var state = await _client.GetFromJsonAsync<GameStateDto>($"/api/games/{game.GameId}");
+        var stateEntry = Assert.Single(state!.History);
+        Assert.Equal(new CoordinateDto(0, 0), Assert.Single(turnEntry.PlayerShots).Target);
+        Assert.Equal(turnEntry.PlayerShots[0].Target, stateEntry.PlayerShots[0].Target);
+        Assert.Equal(turnEntry.PlayerShots[0].Outcome, stateEntry.PlayerShots[0].Outcome);
+    }
+
     private static readonly ShipPlacementDto[] ValidStandardPlacements =
     [
         new(nameof(ShipKind.PorteAvions), 0, 0, nameof(Orientation.Horizontal)),

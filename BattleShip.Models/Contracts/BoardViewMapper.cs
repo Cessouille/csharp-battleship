@@ -99,7 +99,8 @@ public static class BoardViewMapper
             game.HumanBoard.ToMyBoardDto(),
             game.ComputerBoard.ToOpponentBoardDto(),
             game.Options.ToDto(),
-            game.ToPlayerActionsDto());
+            game.ToPlayerActionsDto(),
+            game.History.Select(ToJournalEntryDto).ToList());
 
     public static TurnResultDto ToTurnResultDto(this Game game, TurnResult turn) =>
         new(
@@ -112,5 +113,14 @@ public static class BoardViewMapper
             turn.Winner?.ToString(),
             game.HumanBoard.ToMyBoardDto(),
             game.ComputerBoard.ToOpponentBoardDto(),
-            game.ToPlayerActionsDto());
+            game.ToPlayerActionsDto(),
+            game.History.Select(ToJournalEntryDto).ToList());
+
+    public static JournalEntryDto ToJournalEntryDto(this TurnResult turn) =>
+        new(
+            turn.PlayerShots.Select(ToShotResultDto).ToList(),
+            turn.PlayerScan?.ToScanResultDto(),
+            turn.PlayerWeapon?.ToString(),
+            turn.ComputerShots.Select(ToShotResultDto).ToList(),
+            turn.ComputerWeapon?.ToString());
 }

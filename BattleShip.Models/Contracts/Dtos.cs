@@ -55,6 +55,14 @@ public sealed record ArsenalDto(int Torpedoes, int AirStrikes);
 /// </summary>
 public sealed record PlayerActionsDto(int ScansRemaining, int SalvoSize, ArsenalDto Arsenal, ArsenalDto OpponentArsenal);
 
+/// <summary>Une entrée du journal de partie (TICKET-10) : les mêmes champs qu'un tour, sans l'état de plateau qui l'accompagne dans TurnResultDto.</summary>
+public sealed record JournalEntryDto(
+    IReadOnlyList<ShotResultDto> PlayerShots,
+    ScanResultDto? PlayerScan,
+    string? PlayerWeapon,
+    IReadOnlyList<ShotResultDto> ComputerShots,
+    string? ComputerWeapon);
+
 public sealed record GameStateDto(
     Guid GameId,
     string Status,
@@ -62,7 +70,8 @@ public sealed record GameStateDto(
     MyBoardDto MyBoard,
     OpponentBoardDto OpponentBoard,
     GameOptionsDto Options,
-    PlayerActionsDto Actions);
+    PlayerActionsDto Actions,
+    IReadOnlyList<JournalEntryDto> History);
 
 public sealed record CreateGameResponseDto(
     Guid GameId,
@@ -94,4 +103,5 @@ public sealed record TurnResultDto(
     string? Winner,
     MyBoardDto MyBoard,
     OpponentBoardDto OpponentBoard,
-    PlayerActionsDto Actions);
+    PlayerActionsDto Actions,
+    IReadOnlyList<JournalEntryDto> History);

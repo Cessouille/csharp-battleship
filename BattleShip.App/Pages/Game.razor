@@ -39,9 +39,19 @@ else
         <div class="alert alert-danger">@_moveError</div>
     }
 
-    @if (_turnSummary is not null)
+    @if (_state.History.Count > 0)
     {
-        <p class="small">@_turnSummary</p>
+        <div class="mb-3">
+            <h2 class="h6">Journal de partie</h2>
+            <ul class="small">
+                @for (var i = 0; i < _state.History.Count; i++)
+                {
+                    var turnNumber = i + 1;
+                    var entry = _state.History[i];
+                    <li>@DescribeEntry(turnNumber, entry)</li>
+                }
+            </ul>
+        </div>
     }
 
     <div class="row">
@@ -71,7 +81,6 @@ else
     private bool _notFound;
     private bool _busy;
     private string? _moveError;
-    private string? _turnSummary;
 
     private bool IsSalvo => _state?.Options.ShotMode == nameof(ShotMode.Salvo);
 
@@ -170,8 +179,6 @@ else
                 Column = origin.Column
             });
             _state = reply.State.ToGameStateDto();
-            var computerWeapon = string.IsNullOrEmpty(reply.ComputerWeapon) ? null : reply.ComputerWeapon;
-            _turnSummary = $"Scan : {(reply.Scan.ShipDetected ? "navire détecté" : "zone vide")}. {DescribeComputerTurn(reply.ComputerShots.Count, computerWeapon)}";
         }
         catch (RpcException ex)
         {
@@ -193,8 +200,6 @@ else
             var reply = await GrpcClient.PlaySalvoAsync(request);
             _state = reply.State.ToGameStateDto();
             _selection.Clear();
-            var computerWeapon = string.IsNullOrEmpty(reply.ComputerWeapon) ? null : reply.ComputerWeapon;
-            _turnSummary = DescribeComputerTurn(reply.ComputerShots.Count, computerWeapon);
         }
         catch (RpcException ex)
         {
@@ -223,10 +228,10 @@ else
                     Winner = turn.Winner,
                     MyBoard = turn.MyBoard,
                     OpponentBoard = turn.OpponentBoard,
-                    Actions = turn.Actions
+                    Actions = turn.Actions,
+                    History = turn.History
                 };
                 _selection.Clear();
-                _turnSummary = DescribeComputerTurn(turn.ComputerShots.Count, turn.ComputerWeapon);
                 break;
             case HttpStatusCode.Conflict:
                 var conflict = await response.Content.ReadFromJsonAsync<ConflictBody>();
@@ -241,12 +246,42 @@ else
         }
     }
 
-    private static string DescribeComputerTurn(int shots, string? weapon) => weapon switch
+    /// <summary>Une entrée du journal (TICKET-10) : le coup du joueur puis la riposte, sur le modèle des messages déjà affichés au fil de la partie.</summary>
+    private static string DescribeEntry(int turnNumber, JournalEntryDto entry)
     {
-        nameof(WeaponKind.Torpedo) => "L'ordinateur a lancé sa torpille.",
-        nameof(WeaponKind.AirStrike) => "L'ordinateur a lancé sa frappe aérienne.",
-        _ when shots == 0 => "",
-        _ => $"L'ordinateur a tiré {shots} coup{(shots > 1 ? "s" : "")}."
+        var playerText = entry.PlayerWeapon switch
+        {
+            nameof(WeaponKind.Torpedo) => $"torpille ({DescribeShots(entry.PlayerShots)})",
+            nameof(WeaponKind.AirStrike) => $"frappe aérienne ({DescribeShots(entry.PlayerShots)})",
+            _ when entry.PlayerScan is not null =>
+                $"scan en ({entry.PlayerScan.Origin.Row},{entry.PlayerScan.Origin.Column}) → {(entry.PlayerScan.ShipDetected ? "navire détecté" : "zone vide")}",
+            _ when entry.PlayerShots.Count > 1 => $"salve de {entry.PlayerShots.Count} tirs ({DescribeShots(entry.PlayerShots)})",
+            _ => $"tir en ({entry.PlayerShots[0].Target.Row},{entry.PlayerShots[0].Target.Column}) → {DescribeOutcome(entry.PlayerShots[0].Outcome)}"
+        };
+
+        var computerText = entry.ComputerWeapon switch
+        {
+            nameof(WeaponKind.Torpedo) => "torpille",
+            nameof(WeaponKind.AirStrike) => "frappe aérienne",
+            _ when entry.ComputerShots.Count == 0 => "aucune riposte",
+            _ => $"{entry.ComputerShots.Count} tir{(entry.ComputerShots.Count > 1 ? "s" : "")} ({DescribeShots(entry.ComputerShots)})"
+        };
+
+        return $"Tour {turnNumber} : {playerText} — riposte : {computerText}.";
+    }
+
+    private static string DescribeShots(IReadOnlyList<ShotResultDto> shots)
+    {
+        var hits = shots.Count(s => s.Outcome != ShotOutcomeDto.Miss);
+        return hits == 0 ? "aucun touché" : $"{hits} touché{(hits > 1 ? "s" : "")}";
+    }
+
+    private static string DescribeOutcome(ShotOutcomeDto outcome) => outcome switch
+    {
+        ShotOutcomeDto.Miss => "raté",
+        ShotOutcomeDto.Hit => "touché",
+        ShotOutcomeDto.Sunk => "coulé",
+        _ => outcome.ToString()
     };
 
     private Task GoHomeAsync()
