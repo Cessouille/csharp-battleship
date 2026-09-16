@@ -39,21 +39,6 @@ else
         <div class="alert alert-danger">@_moveError</div>
     }
 
-    @if (_state.History.Count > 0)
-    {
-        <div class="mb-3">
-            <h2 class="h6">Journal de partie</h2>
-            <ul class="small">
-                @for (var i = 0; i < _state.History.Count; i++)
-                {
-                    var turnNumber = i + 1;
-                    var entry = _state.History[i];
-                    <li>@DescribeEntry(turnNumber, entry)</li>
-                }
-            </ul>
-        </div>
-    }
-
     <div class="row">
         <div class="col-auto">
             <h2 class="h5">Votre plateau</h2>
@@ -68,6 +53,21 @@ else
             <FleetLegend Entries="FleetLegend.FromOpponentView(_state.OpponentBoard.SunkShips)" />
         </div>
     </div>
+
+    @if (_state.History.Count > 0)
+    {
+        <div class="mb-3">
+            <h2 class="h6">Journal de partie</h2>
+            <ul class="small">
+                @for (var i = 0; i < _state.History.Count; i++)
+                {
+                    var turnNumber = i + 1;
+                    var entry = _state.History[i];
+                    <li>@DescribeEntry(turnNumber, entry)</li>
+                }
+            </ul>
+        </div>
+    }
 }
 
 @code {
