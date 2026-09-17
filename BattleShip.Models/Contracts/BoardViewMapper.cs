@@ -61,6 +61,10 @@ public static class BoardViewMapper
     public static (ShipKind Kind, Coordinate Origin, Orientation Orientation) ToPlacementSpec(this ShipPlacementDto dto) =>
         (Enum.Parse<ShipKind>(dto.Kind), new Coordinate(dto.Row, dto.Column), Enum.Parse<Orientation>(dto.Orientation));
 
+    /// <summary>Suppose la requête déjà validée (CreateGameRequestDtoValidator) : un PlayerId mal formé lève ici.</summary>
+    public static Guid? ToPlayerId(this CreateGameRequestDto request) =>
+        request.PlayerId is null ? null : Guid.Parse(request.PlayerId);
+
     public static WeaponAction ToWeaponAction(this TorpedoRequestDto request) =>
         new WeaponAction.Torpedo(Enum.Parse<Edge>(request.From), request.Lane);
 

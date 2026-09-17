@@ -14,6 +14,13 @@ public sealed class CreateGameRequestDtoValidator : AbstractValidator<CreateGame
         RuleFor(r => r.Difficulty).Must(difficulty => Enum.GetNames<AiDifficulty>().Contains(difficulty))
             .WithMessage($"Difficulty doit valoir l'une des valeurs : {string.Join(", ", Enum.GetNames<AiDifficulty>())}.");
 
+        // PlayerId n'a pas besoin d'exister déjà (TICKET-14, profil dérivé) : seule la forme GUID est vérifiée ici.
+        When(r => r.PlayerId is not null, () =>
+        {
+            RuleFor(r => r.PlayerId).Must(id => Guid.TryParse(id, out _))
+                .WithMessage("PlayerId doit être un GUID valide.");
+        });
+
         // La forme seulement : composition exacte de la flotte et chevauchement restent du ressort du domaine
         // (Game.TryCreateManual), même répartition FluentValidation/domaine que pour les tirs.
         When(r => r.Placements is not null, () =>

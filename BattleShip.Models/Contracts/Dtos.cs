@@ -36,14 +36,16 @@ public sealed record ShipPlacementDto(string Kind, int Row, int Column, string O
 /// <summary>
 /// Options demandées à la création ; tout champ absent garde la valeur de la partie classique (<c>{}</c> = partie classique).
 /// <c>Placements</c> absent ou vide : flotte humaine placée aléatoirement (comportement historique) ; sinon, placement
-/// manuel revalidé côté serveur (voir docs/adr/0013-placement-manuel.md).
+/// manuel revalidé côté serveur (voir docs/adr/0013-placement-manuel.md). <c>PlayerId</c> : GUID facultatif obtenu via
+/// <c>POST /api/players</c> (TICKET-14) ; absent, la partie n'est associée à aucun profil.
 /// </summary>
 public sealed record CreateGameRequestDto(
     bool Radar = false,
     string ShotMode = "Classic",
     bool SpecialWeapons = false,
     IReadOnlyList<ShipPlacementDto>? Placements = null,
-    string Difficulty = "Hard");
+    string Difficulty = "Hard",
+    string? PlayerId = null);
 
 public sealed record GameOptionsDto(bool Radar, string ShotMode, bool SpecialWeapons, string Difficulty);
 
@@ -112,3 +114,10 @@ public sealed record TurnResultDto(
     PlayerActionsDto Actions,
     IReadOnlyList<JournalEntryDto> History,
     IReadOnlyList<string> Achievements);
+
+/// <summary>
+/// Profil joueur (TICKET-14) : projection dérivée des parties créées avec ce PlayerId, jamais un état stocké
+/// séparément (voir docs/adr/0018-profil-joueur-anonyme.md). Bien défini, potentiellement vide, pour tout
+/// GUID syntaxiquement valide — il n'existe pas de « profil inconnu ».
+/// </summary>
+public sealed record PlayerProfileDto(Guid PlayerId, int HardVictories, IReadOnlyList<string> Achievements);

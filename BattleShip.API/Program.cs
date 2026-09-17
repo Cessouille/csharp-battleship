@@ -30,6 +30,7 @@ app.UseCors(AppCorsPolicy);
 app.UseGrpcWeb();
 
 app.MapGameEndpoints();
+app.MapPlayerEndpoints();
 app.MapGrpcService<BattleshipGrpcService>().EnableGrpcWeb().RequireCors(AppCorsPolicy);
 
 app.Run();

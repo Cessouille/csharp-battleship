@@ -15,7 +15,10 @@ public static class GameEndpoints
         // cet endpoint par ASP.NET Core, même avec un paramètre nullable (vérifié, voir REVUE-IA.md).
         group.MapPost("", (CreateGameRequestDto request, InMemoryGameStore store) =>
         {
-            var result = store.TryCreate(request.ToGameOptions(), request.Placements?.Select(p => p.ToPlacementSpec()).ToList());
+            var result = store.TryCreate(
+                request.ToGameOptions(),
+                request.Placements?.Select(p => p.ToPlacementSpec()).ToList(),
+                request.ToPlayerId());
             return result switch
             {
                 CreateGameResult.Created created => created.Game.Locked(() =>

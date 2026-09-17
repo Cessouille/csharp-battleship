@@ -110,3 +110,23 @@ Content-Type: application/json
   ]
 }
 
+### Profil joueur (TICKET-14) : créer un identifiant anonyme -> 201, profil vide
+POST {{api}}/api/players
+
+### Créer une partie associée à ce profil (remplacer {{playerId}})
+@playerId = 00000000-0000-0000-0000-000000000000
+POST {{api}}/api/games
+Content-Type: application/json
+
+{ "playerId": "{{playerId}}" }
+
+### Lire le profil : dérivé des parties de ce joueur, jamais 404 pour un GUID valide sans partie jouée
+GET {{api}}/api/players/{{playerId}}
+Accept: application/json
+
+### PlayerId mal formé à la création -> 400 ValidationProblem
+POST {{api}}/api/games
+Content-Type: application/json
+
+{ "playerId": "pas-un-guid" }
+
