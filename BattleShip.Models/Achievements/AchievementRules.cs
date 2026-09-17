@@ -9,6 +9,10 @@ public static class AchievementRules
 {
     public static IReadOnlyList<IAchievementRule> All { get; } =
     [
-        new PerfectRowRule()
+        new PerfectRowRule(),
+        new NoScratchRule(),
+        new FourCornersRule(),
+        new FullKitRule(),
+        new GlowUpRule()
     ];
 }
