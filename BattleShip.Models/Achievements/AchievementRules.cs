@@ -16,6 +16,8 @@ public static class AchievementRules
         new GlowUpRule(),
         new SparklingStreakRule(),
         new LoveAtFirstSightRule(),
-        new MagicWandRule()
+        new MagicWandRule(),
+        new ShotPatternRule(AchievementId.CoeurDeTirs, ShotPatterns.Heart),
+        new ShotPatternRule(AchievementId.NoeudPapillon, ShotPatterns.BowTie)
     ];
 }
