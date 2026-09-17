@@ -1,0 +1,68 @@
+/* Calqué sur GameStatusBanner.razor.css (.alert-success) : même dégrigné rose/doré et même scintillement. */
+.achievement-toast {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(120deg, var(--rose-vif, #FF3E9D), var(--rose-fonce, #B0177A));
+    color: white;
+    border: none;
+    border-radius: 1.25rem;
+}
+
+    .achievement-toast::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image:
+            radial-gradient(circle, white 1px, transparent 1.5px),
+            radial-gradient(circle, var(--dore, #FFD966) 1.5px, transparent 2px),
+            radial-gradient(circle, white 1px, transparent 1.5px);
+        background-size: 40px 40px, 70px 70px, 55px 55px;
+        background-position: 10px 10px, 60px 5px, 30px 30px;
+        opacity: 0.6;
+        animation: achievement-sparkle-drift 6s linear infinite;
+        pointer-events: none;
+    }
+
+    .achievement-toast > * {
+        position: relative;
+    }
+
+.achievement-toast-entry {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+    .achievement-toast-entry + .achievement-toast-entry {
+        margin-top: 0.5rem;
+    }
+
+.achievement-toast-emoji {
+    font-size: 1.75rem;
+    line-height: 1;
+}
+
+.achievement-toast-entry p {
+    margin: 0;
+}
+
+.achievement-toast .btn-close {
+    float: right;
+    filter: brightness(0) invert(1);
+}
+
+@keyframes achievement-sparkle-drift {
+    from {
+        background-position: 10px 10px, 60px 5px, 30px 30px;
+    }
+
+    to {
+        background-position: 10px 50px, 60px 45px, 30px 70px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .achievement-toast::before {
+        animation: none;
+    }
+}

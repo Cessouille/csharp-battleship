@@ -27,6 +27,11 @@ else
 {
     <GameStatusBanner Status="@_state.Status" Winner="@_state.Winner" Hint="@Hint" OnNewGame="GoHomeAsync" />
 
+    @if (_newlyUnlocked.Count > 0)
+    {
+        <AchievementToast AchievementIds="_newlyUnlocked" OnDismiss="() => _newlyUnlocked = []" />
+    }
+
     @if (_state.Status == "InProgress")
     {
         <ActionBar State="_state" Mode="_mode" ModeChanged="SetMode"
@@ -53,6 +58,25 @@ else
             <FleetLegend Entries="FleetLegend.FromOpponentView(_state.OpponentBoard.SunkShips)" />
         </div>
     </div>
+
+    @if (_state.Achievements.Count > 0)
+    {
+        <div class="mb-3">
+            <h2 class="h6">Succès de cette partie</h2>
+            <p class="small">Voir <a href="mes-succes">Mes succès</a> pour l'ensemble de vos succès, toutes parties confondues.</p>
+            <div class="row row-cols-1 row-cols-md-2 g-2">
+                @foreach (var id in _state.Achievements)
+                {
+                    @if (AchievementCatalog.Find(id) is { } info)
+                    {
+                        <div class="col">
+                            <AchievementBadge Info="info" Unlocked="true" />
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    }
 
     @if (_state.History.Count > 0)
     {
@@ -81,6 +105,7 @@ else
     private bool _notFound;
     private bool _busy;
     private string? _moveError;
+    private IReadOnlyList<string> _newlyUnlocked = [];
 
     private bool IsSalvo => _state?.Options.ShotMode == nameof(ShotMode.Salvo);
 
@@ -110,6 +135,19 @@ else
         {
             _notFound = true;
         }
+    }
+
+    /// <summary>
+    /// Remplace l'état de partie et calcule les succès nouvellement débloqués par différence avec l'état
+    /// précédent, pour le toast (docs/adr/0017-systeme-de-succes.md). N'est volontairement pas appelée par
+    /// LoadStateAsync (hydratation initiale) : les succès déjà acquis n'ont pas à re-déclencher un toast à
+    /// chaque rechargement de la page.
+    /// </summary>
+    private void UpdateState(GameStateDto newState)
+    {
+        var previousIds = _state?.Achievements.ToHashSet() ?? [];
+        _newlyUnlocked = newState.Achievements.Where(id => !previousIds.Contains(id)).ToList();
+        _state = newState;
     }
 
     private void SetMode(ActionMode mode)
@@ -178,7 +216,7 @@ else
                 Row = origin.Row,
                 Column = origin.Column
             });
-            _state = reply.State.ToGameStateDto();
+            UpdateState(reply.State.ToGameStateDto());
         }
         catch (RpcException ex)
         {
@@ -198,7 +236,7 @@ else
         try
         {
             var reply = await GrpcClient.PlaySalvoAsync(request);
-            _state = reply.State.ToGameStateDto();
+            UpdateState(reply.State.ToGameStateDto());
             _selection.Clear();
         }
         catch (RpcException ex)
@@ -222,7 +260,7 @@ else
                     return;
                 }
 
-                _state = _state!.Apply(turn);
+                UpdateState(_state!.Apply(turn));
                 _selection.Clear();
                 break;
             case HttpStatusCode.Conflict:

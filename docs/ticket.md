@@ -436,6 +436,274 @@ partie (ADR 0009) ; testés séparément.
 
 ---
 
+## Troisième vague — Système de succès (2026-09-17)
+
+Cette vague part d'une liste d'idées du binôme, complétée par cinq propositions de l'IA pensées pour le thème
+visuel actuel de l'App (palette `--rose-vif` / `--lilas` / `--dore` / `--creme` de `wwwroot/css/app.css`,
+polices Fredoka/Quicksand). **Rien n'est acté** : tous les tickets et tous les succès sont au statut `proposé`,
+l'origine de chaque idée est tracée (binôme ou IA) et les noms de succès sont des suggestions.
+
+Découpage :
+- **TICKET-12** — socle technique commun (évaluation serveur, stockage, contrat, affichage) ;
+- **TICKET-13** — catalogue des succès évaluables **dans une seule partie** (S-01, S-02, S-04 à S-11) ;
+- **TICKET-14** — succès **inter-parties**, qui imposent un profil joueur (S-03).
+
+Ordre indicatif, **non décidé** : TICKET-12 → succès à lecture directe (S-02, S-05, S-07, S-09, S-11) →
+succès qui parcourent le journal (S-04, S-10) → succès à motif (S-01 puis S-08, même moteur) → S-06 (dépend
+d'un arbitrage sur le moment d'évaluation) → TICKET-14.
+
+### Récapitulatif du catalogue
+
+| Id | Nom proposé | Condition résumée | Origine | Portée | Ticket |
+|---|---|---|---|---|---|
+| S-01 | 💖 Cœur de tirs | Dessiner un cœur 5×5 avec ses tirs | binôme | partie | 13 |
+| S-02 | 🛡️ Sans une égratignure | Gagner sans perdre de navire | binôme | partie | 13 |
+| S-03 | 👑 Reine du difficile | Gagner 3 parties en Difficile | binôme | inter-parties | 14 |
+| S-04 | 💫 Série étincelante | Toucher 5 fois d'affilée | binôme | partie | 13 |
+| S-05 | 💎 Quatre coins | Gagner en ayant tiré dans chaque coin | binôme | partie | 13 |
+| S-06 | 📏 Rangée parfaite | Flotte placée sur uniquement deux lignes | binôme | partie | 13 |
+| S-07 | 💘 Coup de foudre | Toucher dès le premier tir de la partie | IA | partie | 13 |
+| S-08 | 🎀 Nœud papillon | Dessiner un nœud 5×5 avec ses tirs | IA | partie | 13 |
+| S-09 | 👛 Panoplie complète | Gagner avec Radar + Salvo + Armes spéciales | IA | partie | 13 |
+| S-10 | ✨ Baguette magique | Couler un navire avec une arme spéciale | IA | partie | 13 |
+| S-11 | 🦋 Glow up | Gagner avec un seul navire encore à flot | IA | partie | 13 |
+
+---
+
+## TICKET-12 — Socle du système de succès
+
+**Statut** : proposé
+
+**Description** : des succès se débloquent pendant une partie selon ce que fait le joueur ; ils sont détectés
+par le serveur, conservés avec la partie et affichés dans l'App (notification au déblocage + panneau de badges).
+
+**État actuel du code** :
+- `Game.History` (`IReadOnlyList<TurnResult>`, TICKET-10) est alimenté uniquement par `CompleteTurn`, donc
+  jamais par un coup refusé. Chaque `TurnResult` porte `PlayerShots` (`ShotResolution` : `Target`,
+  `Outcome` ∈ `Miss`/`Hit`/`Sunk`, `SunkShipKind`), `PlayerScan`, `PlayerWeapon`, `ComputerShots`,
+  `ComputerWeapon`, `Winner`, `Status`.
+- `ComputerBoard.ShotsReceived` = ensemble des cases jouées par le joueur ; `HumanBoard.Ships[].Cells` et
+  `IsSunk` = flotte du joueur ; `Game.Options` = options de la partie (dont `Difficulty`).
+- Les cases vides traversées par une torpille sont résolues en `Miss` par `Board.ReceiveWeapon` : elles
+  apparaissent dans `PlayerShots` et `ShotsReceived` comme n'importe quel tir raté (impact sur S-01, S-04, S-05,
+  S-08, voir leurs questions).
+- Aucune notion de succès n'existe, ni côté serveur ni côté App.
+
+**Contraintes (issues de CLAUDE.md et des ADR existants)** :
+- **Évaluation côté serveur uniquement** : le client n'envoie jamais « succès débloqué », il ne fait qu'afficher.
+- Évaluation **sous le verrou** de `Game` (ADR 0007), au même chokepoint que le journal (`CompleteTurn`) : un
+  coup refusé ne débloque rien, rejouer une case déjà jouée ne fait pas progresser une série.
+- **Anti-fuite** : le déblocage d'un succès en cours de partie ne doit dépendre que d'informations déjà
+  visibles par le joueur (ses propres tirs et leurs résultats, sa propre flotte, les options). Toute règle qui
+  lirait une case adverse non découverte est refusée, même si elle « ne donne qu'un booléen ».
+- Un succès débloqué n'est **jamais retiré** (même logique « ajout seul » que `History`).
+- Numéros de champs proto uniquement ajoutés : prochain numéro libre de `GameStateReply` = `9`.
+
+**Impact technique (piste, à confirmer dans l'ADR)** :
+- Domaine, `BattleShip.Models/Achievements/` : `AchievementId` (enum), une règle par succès derrière une
+  interface commune (ex. `IAchievementRule { AchievementId Id; bool IsUnlocked(Game game); }`) et un
+  `AchievementEvaluator` qui les exécute toutes. Une classe par règle : chaque succès se teste et s'explique
+  isolément, et en ajouter un ne modifie pas les autres.
+- `Game.Achievements` (`IReadOnlyCollection<AchievementId>`), complété dans `CompleteTurn` après l'ajout au
+  journal ; éventuellement aussi à la création pour S-06 (voir TICKET-13).
+- Contrat : `GameStateDto.Achievements` et `TurnResultDto.Achievements` (liste complète d'identifiants
+  `string`, comme `History`) ; proto `repeated string achievements = 9` dans `GameStateReply` ;
+  mapping dans `BoardViewMapper` / `GameStateMapper` (API) et `GrpcMapping` (App). `ScanZoneReply` et
+  `PlaySalvoReply` en héritent via leur `state` imbriqué, comme pour le journal.
+- App : libellés, emoji et descriptions vivent côté App (présentation), le serveur n'expose que des
+  identifiants. Notification (« toast » arrondi rose vif / doré) calculée par différence entre la liste
+  précédente et la nouvelle ; panneau « Mes succès » sous les grilles, badges débloqués en `--dore`, badges
+  verrouillés en silhouette `--lilas`.
+- **ADR obligatoire** (changement de représentation de l'état) : `0017-systeme-de-succes.md`.
+- README : fonctionnalités livrées + limites connues à mettre à jour à la livraison.
+
+**Questions à trancher** :
+- Succès **visibles verrouillés** avec leur condition, ou **secrets** jusqu'au déblocage (le cœur et le nœud
+  papillon se prêtent bien au secret) ?
+- Évaluation **à chaque tour** (retour immédiat, cohérent avec le journal) ou **en fin de partie seulement**
+  (plus simple, mais S-01/S-04/S-07/S-08/S-10 perdent leur effet « surprise ») ?
+- Périmètre de la première livraison : TICKET-12 + TICKET-13 seuls, ou TICKET-14 inclus ?
+
+**Tests attendus** :
+- un coup refusé (case déjà jouée, hors grille, partie terminée) ne débloque aucun succès ;
+- un succès débloqué reste présent jusqu'à la fin de la partie ;
+- chaque règle testée en positif **et** en négatif (voir TICKET-13) : un test qui échoue si la règle est neutralisée ;
+- round-trip REST et gRPC de la liste de succès ;
+- aucun succès ne se débloque sur une partie dont l'évaluateur n'a lu que des cases adverses non découvertes
+  (test de non-fuite dans le style des tests `BoardViewMapper` existants).
+
+---
+
+## TICKET-13 — Catalogue des succès intra-partie
+
+**Statut** : proposé — dépend de TICKET-12
+
+Chaque succès ci-dessous est une règle indépendante. « Tir du joueur » désigne un `ShotResolution` de
+`PlayerShots`, quelle que soit l'action qui l'a produit (tir, salve, arme), sauf arbitrage contraire.
+
+### S-01 — 💖 Cœur de tirs (idée du binôme)
+
+**Condition** : les cases jouées par le joueur (`ComputerBoard.ShotsReceived`) contiennent un cœur dans une
+fenêtre 5×5 quelconque de la grille. Motif candidat, **à valider** (16 cases) :
+
+```
+. X . X .
+X X X X X
+X X X X X
+. X X X .
+. . X . .
+```
+
+**Questions à trancher** : motif exact ; des tirs supplémentaires dans la fenêtre (sur les cases `.`)
+invalident-ils le dessin ? ; les cases ratées traversées par une torpille comptent-elles comme « dessinées » ?
+
+**Tests attendus** : motif complet n'importe où dans la grille → débloqué ; motif à une case près → non ;
+motif collé au bord droit/bas (fenêtre qui tient tout juste) → débloqué.
+
+### S-02 — 🛡️ Sans une égratignure (idée du binôme)
+
+**Condition** : `Winner == Human` et aucun navire de `HumanBoard.Ships` n'est `IsSunk`.
+
+**Questions à trancher** : « perdre un bateau » = navire **coulé**, ou le nom suggère-t-il **aucune case
+touchée** (beaucoup plus difficile) ?
+
+**Tests attendus** : victoire avec un navire coulé → non ; victoire flotte intacte → débloqué ; partie en
+cours flotte intacte → non (la condition exige la victoire).
+
+### S-04 — 💫 Série étincelante (idée du binôme)
+
+**Condition** : 5 tirs du joueur consécutifs, dans l'ordre du journal, dont le `Outcome` est `Hit` ou `Sunk` ;
+un `Miss` remet la série à zéro.
+
+**Questions à trancher** : un scan radar (aucun tir) interrompt-il la série ? ; en Salvo, l'ordre à l'intérieur
+d'une salve est-il celui envoyé par le joueur ? ; les `Miss` produits par la traversée d'une torpille cassent-ils
+la série (comportement par défaut si l'on lit `PlayerShots` tel quel) ?
+
+**Tests attendus** : touche ×4 puis raté puis touche → non ; 5 touches réparties sur 5 tours classiques →
+débloqué ; case déjà jouée refusée au milieu de la série → série intacte (le refus n'est pas dans le journal).
+
+### S-05 — 💎 Quatre coins (idée du binôme)
+
+**Condition** : `Winner == Human` et `ShotsReceived` contient les quatre coins `(0,0)`, `(0,9)`, `(9,0)`,
+`(9,9)` (bornes dérivées de `BoardGrid.Size`, pas codées en dur).
+
+**Questions à trancher** : le tir gagnant doit-il lui-même tomber dans un coin ? ; un coin atteint par une
+frappe aérienne ou traversé par une torpille compte-t-il ?
+
+**Tests attendus** : 3 coins + victoire → non ; 4 coins + défaite → non ; 4 coins + victoire → débloqué.
+
+### S-06 — 📏 Rangée parfaite (idée du binôme)
+
+**Condition** : les cases de tous les navires de `HumanBoard.Ships` n'occupent que deux lignes distinctes.
+Faisable avec la flotte standard (5 + 4 + 3 + 3 + 2 = 17 cases ≤ 20) grâce au placement manuel (TICKET-05,
+ADR 0013).
+
+**Questions à trancher** :
+- **moment d'évaluation** : à la création, le succès s'obtient en créant une partie puis en l'abandonnant ;
+  l'exiger en fin de partie **gagnée** évite ce contournement ;
+- le torpilleur **vertical** qui enjambe exactement les deux lignes est-il accepté, ou tous les navires
+  doivent-ils être horizontaux ? ;
+- les deux lignes doivent-elles être adjacentes ? ;
+- un placement **aléatoire** qui tomberait par hasard sur deux lignes compte-t-il ?
+
+**Tests attendus** : flotte sur 3 lignes → non ; flotte sur 2 lignes (placement manuel) + condition de
+moment retenue → débloqué ; placement manuel refusé (chevauchement) → aucune partie, aucun succès.
+
+### S-07 — 💘 Coup de foudre (proposition IA)
+
+**Condition** : le premier tir du joueur de toute la partie (premier `ShotResolution` du premier
+`TurnResult` dont `PlayerShots` n'est pas vide) a un `Outcome` `Hit` ou `Sunk`.
+
+**Questions à trancher** : si la première action est un scan radar, le premier tir compte-t-il encore ? ; en
+Salvo, faut-il la première case de la salve ou au moins une touche dans la première salve ?
+
+**Tests attendus** : premier tir raté puis touche au second → non ; premier tir touché → débloqué ; scan puis
+tir touché → selon l'arbitrage.
+
+### S-08 — 🎀 Nœud papillon (proposition IA)
+
+**Condition** : même moteur que S-01, autre motif 5×5. Motif candidat, **à valider** (17 cases) :
+
+```
+X . . . X
+X X . X X
+X X X X X
+X X . X X
+X . . . X
+```
+
+**Questions à trancher** : identiques à S-01 ; accepter aussi le nœud tourné d'un quart de tour ?
+
+**Tests attendus** : identiques à S-01 ; le cœur complet ne débloque pas le nœud et inversement.
+
+### S-09 — 👛 Panoplie complète (proposition IA)
+
+**Condition** : `Winner == Human` avec `Options.Radar`, `Options.ShotMode == Salvo` et
+`Options.SpecialWeapons` tous activés.
+
+**Questions à trancher** : faut-il avoir réellement **utilisé** au moins un scan et une arme (sinon cocher les
+cases suffit) ? ; une difficulté minimale est-elle exigée ?
+
+**Tests attendus** : une option manquante + victoire → non ; toutes les options + défaite → non ; toutes les
+options + victoire → débloqué.
+
+### S-10 — ✨ Baguette magique (proposition IA)
+
+**Condition** : un `TurnResult` du joueur avec `PlayerWeapon` non nul contient un tir `Sunk`.
+
+**Questions à trancher** : suffit-il que l'arme porte le coup de grâce, ou le navire doit-il être coulé
+**entièrement** par l'arme (aucune touche antérieure) ? La version stricte n'est réaliste qu'avec la frappe
+aérienne sur le torpilleur (2 cases) ou un navire de 3 cases.
+
+**Tests attendus** : arme qui touche sans couler → non ; tir classique qui coule → non ; arme qui coule → débloqué.
+
+### S-11 — 🦋 Glow up (proposition IA)
+
+**Condition** : `Winner == Human` et exactement un navire de `HumanBoard.Ships` n'est pas `IsSunk`. Un navire
+coulé ne se relève jamais : « un seul navire restant à la fin » équivaut à « être descendue à un seul navire ».
+
+**Questions à trancher** : aucune identifiée.
+
+**Tests attendus** : victoire avec 2 navires à flot → non ; victoire avec 1 navire à flot → débloqué ; S-02 et
+S-11 ne peuvent jamais être débloqués ensemble dans la même partie.
+
+---
+
+## TICKET-14 — Succès inter-parties et profil joueur
+
+**Statut** : proposé — dépend de TICKET-12
+
+**Description** : succès cumulés sur plusieurs parties. Premier cas : **S-03 — 👑 Reine du difficile** (idée
+du binôme), gagner 3 parties en difficulté `Hard`.
+
+**État actuel du code** : `InMemoryGameStore` ne connaît que des parties (`ConcurrentDictionary<Guid, Game>`),
+aucune notion de joueur ; stockage en mémoire perdu au redémarrage (ADR 0006) ; le README écarte explicitement
+« historique et statistiques » et tout compte joueur. Ce ticket **revient sur cet arbitrage** : à assumer et à
+documenter comme tel.
+
+**Options envisagées (aucune retenue)** :
+- **A — identifiant joueur anonyme** : le serveur génère un identifiant, l'App le conserve dans le navigateur et
+  l'envoie à la création de partie ; le profil (compteurs, succès) vit en mémoire serveur, perdu au redémarrage
+  comme les parties. Cohérent avec ADR 0006 ; compteur incrémenté **par le serveur** à la victoire.
+- **B — compteur côté client uniquement** (`localStorage`) : écartée a priori, le client deviendrait source de
+  vérité et le succès serait falsifiable depuis la console du navigateur.
+- **C — persistance réelle** (base de données) : hors budget du projet, contredit l'ADR 0006.
+
+**Impact technique (option A)** : `PlayerProfile` + `InMemoryPlayerStore` ; identifiant joueur dans
+`CreateGameRequestDto` et le proto (champ ajouté), validé par FluentValidation ; lecture du profil par un
+endpoint REST ou un RPC ; **ADR obligatoire** ; README (arbitrages + limites connues : sans authentification,
+quiconque connaît l'identifiant lit le profil, même limite que les GUID de partie).
+
+**Questions à trancher** : option A retenue ? ; « 3 parties » cumulées ou consécutives ? ; une partie non
+terminée compte-t-elle comme une défaite ? ; d'autres succès inter-parties sont-ils envisagés (sinon TICKET-14
+se réduit à un seul succès, coût à peser) ?
+
+**Tests attendus** : 3 victoires `Hard` → débloqué ; 2 `Hard` + 1 `Medium` → non ; une défaite n'incrémente
+rien ; identifiant joueur inconnu ou malformé → 400/404 (REST) et `InvalidArgument`/`NotFound` (gRPC) ; deux
+victoires concurrentes du même joueur incrémentent bien deux fois (pattern de TICKET-08).
+
+---
+
 ## Piste écartée pour l'instant
 
 ### Navires en formes libres façon Tetris (tétrominos au lieu de segments droits)

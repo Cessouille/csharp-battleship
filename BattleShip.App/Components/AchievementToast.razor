@@ -1,0 +1,25 @@
+@namespace BattleShip.App.Components
+@using BattleShip.App.Game
+
+<div class="alert alert-success achievement-toast" role="status">
+    <button type="button" class="btn-close" aria-label="Fermer" @onclick="OnDismiss"></button>
+    @foreach (var id in AchievementIds)
+    {
+        @if (AchievementCatalog.Find(id) is { } info)
+        {
+            <div class="achievement-toast-entry">
+                <span class="achievement-toast-emoji" aria-hidden="true">@info.Emoji</span>
+                <div>
+                    <strong>Succès débloqué : @info.Name</strong>
+                    <p>@info.Description</p>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    /// <summary>Un identifiant inconnu du catalogue (App plus ancienne que l'API) est ignoré, jamais affiché ni exception.</summary>
+    [Parameter, EditorRequired] public IReadOnlyList<string> AchievementIds { get; set; } = [];
+    [Parameter] public EventCallback OnDismiss { get; set; }
+}
