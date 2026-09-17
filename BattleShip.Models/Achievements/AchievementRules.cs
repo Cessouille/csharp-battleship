@@ -13,6 +13,9 @@ public static class AchievementRules
         new NoScratchRule(),
         new FourCornersRule(),
         new FullKitRule(),
-        new GlowUpRule()
+        new GlowUpRule(),
+        new SparklingStreakRule(),
+        new LoveAtFirstSightRule(),
+        new MagicWandRule()
     ];
 }
