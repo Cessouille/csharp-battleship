@@ -220,9 +220,7 @@ else
         }
         catch (RpcException ex)
         {
-            _moveError = ex.StatusCode == StatusCode.FailedPrecondition
-                ? $"{MoveErrorMessages.For(ex.Status.Detail)} (gRPC {ex.StatusCode})"
-                : $"Erreur gRPC-Web : {ex.StatusCode} — {ex.Status.Detail}";
+            SetMoveErrorFromRpc(ex);
         }
     }
 
@@ -241,10 +239,15 @@ else
         }
         catch (RpcException ex)
         {
-            _moveError = ex.StatusCode == StatusCode.FailedPrecondition
-                ? $"{MoveErrorMessages.For(ex.Status.Detail)} (gRPC {ex.StatusCode})"
-                : $"Erreur gRPC-Web : {ex.StatusCode} — {ex.Status.Detail}";
+            SetMoveErrorFromRpc(ex);
         }
+    }
+
+    private void SetMoveErrorFromRpc(RpcException ex)
+    {
+        _moveError = ex.StatusCode == StatusCode.FailedPrecondition
+            ? $"{MoveErrorMessages.For(ex.Status.Detail)} (gRPC {ex.StatusCode})"
+            : $"Erreur gRPC-Web : {ex.StatusCode} — {ex.Status.Detail}";
     }
 
     private async Task PostTurnAsync<TRequest>(string action, TRequest request)

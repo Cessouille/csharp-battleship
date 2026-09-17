@@ -8,11 +8,8 @@ public sealed class CreateGameRequestDtoValidator : AbstractValidator<CreateGame
 {
     public CreateGameRequestDtoValidator()
     {
-        // Comparaison aux noms déclarés, pas Enum.TryParse : ce dernier accepterait aussi "7" ou "classic".
-        RuleFor(r => r.ShotMode).Must(mode => Enum.GetNames<ShotMode>().Contains(mode))
-            .WithMessage($"ShotMode doit valoir l'une des valeurs : {string.Join(", ", Enum.GetNames<ShotMode>())}.");
-        RuleFor(r => r.Difficulty).Must(difficulty => Enum.GetNames<AiDifficulty>().Contains(difficulty))
-            .WithMessage($"Difficulty doit valoir l'une des valeurs : {string.Join(", ", Enum.GetNames<AiDifficulty>())}.");
+        RuleFor(r => r.ShotMode).MustBeEnumName<CreateGameRequestDto, ShotMode>("ShotMode");
+        RuleFor(r => r.Difficulty).MustBeEnumName<CreateGameRequestDto, AiDifficulty>("Difficulty");
 
         // PlayerId n'a pas besoin d'exister déjà (TICKET-14, profil dérivé) : seule la forme GUID est vérifiée ici.
         When(r => r.PlayerId is not null, () =>
@@ -30,10 +27,8 @@ public sealed class CreateGameRequestDtoValidator : AbstractValidator<CreateGame
 
             RuleForEach(r => r.Placements!).ChildRules(placement =>
             {
-                placement.RuleFor(p => p.Kind).Must(k => Enum.GetNames<ShipKind>().Contains(k))
-                    .WithMessage($"Kind doit valoir l'une des valeurs : {string.Join(", ", Enum.GetNames<ShipKind>())}.");
-                placement.RuleFor(p => p.Orientation).Must(o => Enum.GetNames<Orientation>().Contains(o))
-                    .WithMessage($"Orientation doit valoir l'une des valeurs : {string.Join(", ", Enum.GetNames<Orientation>())}.");
+                placement.RuleFor(p => p.Kind).MustBeEnumName<ShipPlacementDto, ShipKind>("Kind");
+                placement.RuleFor(p => p.Orientation).MustBeEnumName<ShipPlacementDto, Orientation>("Orientation");
                 placement.RuleFor(p => p.Row).InclusiveBetween(0, BoardGrid.Size - 1);
                 placement.RuleFor(p => p.Column).InclusiveBetween(0, BoardGrid.Size - 1);
             });
