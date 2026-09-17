@@ -63,6 +63,10 @@ public sealed record JournalEntryDto(
     IReadOnlyList<ShotResultDto> ComputerShots,
     string? ComputerWeapon);
 
+/// <summary>
+/// <c>Achievements</c> : identifiants de succès débloqués sur cette partie (TICKET-12, docs/adr/0017-systeme-de-succes.md) ;
+/// libellés, emoji et images vivent côté App, jamais dans ce DTO.
+/// </summary>
 public sealed record GameStateDto(
     Guid GameId,
     string Status,
@@ -71,7 +75,8 @@ public sealed record GameStateDto(
     OpponentBoardDto OpponentBoard,
     GameOptionsDto Options,
     PlayerActionsDto Actions,
-    IReadOnlyList<JournalEntryDto> History);
+    IReadOnlyList<JournalEntryDto> History,
+    IReadOnlyList<string> Achievements);
 
 public sealed record CreateGameResponseDto(
     Guid GameId,
@@ -79,7 +84,8 @@ public sealed record CreateGameResponseDto(
     MyBoardDto MyBoard,
     OpponentBoardDto OpponentBoard,
     GameOptionsDto Options,
-    PlayerActionsDto Actions);
+    PlayerActionsDto Actions,
+    IReadOnlyList<string> Achievements);
 
 public sealed record ShotRequestDto(int Row, int Column);
 
@@ -104,4 +110,5 @@ public sealed record TurnResultDto(
     MyBoardDto MyBoard,
     OpponentBoardDto OpponentBoard,
     PlayerActionsDto Actions,
-    IReadOnlyList<JournalEntryDto> History);
+    IReadOnlyList<JournalEntryDto> History,
+    IReadOnlyList<string> Achievements);

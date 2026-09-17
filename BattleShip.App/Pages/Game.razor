@@ -222,15 +222,7 @@ else
                     return;
                 }
 
-                _state = _state! with
-                {
-                    Status = turn.Status,
-                    Winner = turn.Winner,
-                    MyBoard = turn.MyBoard,
-                    OpponentBoard = turn.OpponentBoard,
-                    Actions = turn.Actions,
-                    History = turn.History
-                };
+                _state = _state!.Apply(turn);
                 _selection.Clear();
                 break;
             case HttpStatusCode.Conflict:

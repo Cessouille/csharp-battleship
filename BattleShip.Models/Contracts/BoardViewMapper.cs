@@ -89,7 +89,8 @@ public static class BoardViewMapper
             game.HumanBoard.ToMyBoardDto(),
             game.ComputerBoard.ToOpponentBoardDto(),
             game.Options.ToDto(),
-            game.ToPlayerActionsDto());
+            game.ToPlayerActionsDto(),
+            game.ToAchievementsDto());
 
     public static GameStateDto ToGameStateDto(this Game game) =>
         new(
@@ -100,7 +101,8 @@ public static class BoardViewMapper
             game.ComputerBoard.ToOpponentBoardDto(),
             game.Options.ToDto(),
             game.ToPlayerActionsDto(),
-            game.History.Select(ToJournalEntryDto).ToList());
+            game.History.Select(ToJournalEntryDto).ToList(),
+            game.ToAchievementsDto());
 
     public static TurnResultDto ToTurnResultDto(this Game game, TurnResult turn) =>
         new(
@@ -114,7 +116,12 @@ public static class BoardViewMapper
             game.HumanBoard.ToMyBoardDto(),
             game.ComputerBoard.ToOpponentBoardDto(),
             game.ToPlayerActionsDto(),
-            game.History.Select(ToJournalEntryDto).ToList());
+            game.History.Select(ToJournalEntryDto).ToList(),
+            game.ToAchievementsDto());
+
+    /// <summary>Identifiants seuls (voir GameStateDto) : le nom de l'enum, comme pour Options/Winner ailleurs dans ce mapper.</summary>
+    private static IReadOnlyList<string> ToAchievementsDto(this Game game) =>
+        game.Achievements.Select(a => a.ToString()).ToList();
 
     public static JournalEntryDto ToJournalEntryDto(this TurnResult turn) =>
         new(

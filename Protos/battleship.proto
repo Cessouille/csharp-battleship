@@ -72,6 +72,7 @@ message GameStateReply {
   GameOptionsMessage options = 6;
   PlayerActionsMessage actions = 7;
   repeated JournalEntryMessage history = 8; // TICKET-10 : journal chronologique, survit au rechargement
+  repeated string achievements = 9; // TICKET-12 : identifiants de succès débloqués (voir docs/adr/0017-systeme-de-succes.md)
 }
 
 message JournalEntryMessage {

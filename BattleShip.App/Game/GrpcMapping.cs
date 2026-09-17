@@ -19,7 +19,8 @@ public static class GrpcMapping
                 reply.Actions.SalvoSize,
                 new ArsenalDto(reply.Actions.Arsenal.Torpedoes, reply.Actions.Arsenal.AirStrikes),
                 new ArsenalDto(reply.Actions.OpponentArsenal.Torpedoes, reply.Actions.OpponentArsenal.AirStrikes)),
-            reply.History.Select(ToJournalEntryDto).ToList());
+            reply.History.Select(ToJournalEntryDto).ToList(),
+            reply.Achievements.ToList());
 
     public static JournalEntryDto ToJournalEntryDto(this JournalEntryMessage message) =>
         new(

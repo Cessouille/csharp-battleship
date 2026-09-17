@@ -63,6 +63,7 @@ public static class GameStateMapper
             }
         };
         reply.History.AddRange(state.History.Select(ToJournalEntryMessage));
+        reply.Achievements.AddRange(state.Achievements);
         return reply;
     }
 
