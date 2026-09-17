@@ -21,8 +21,21 @@ else
         en difficulté Difficile. Tous les succès sont visibles ci-dessous, débloqués en doré, verrouillés en silhouette.
     </p>
 
+    <h2 class="h5">Succès inter-parties</h2>
+    <p class="text-muted">Se cumulent sur plusieurs parties, avec le même identifiant joueur anonyme.</p>
     <div class="row row-cols-1 row-cols-md-2 g-3">
-        @foreach (var achievement in AchievementCatalog.All)
+        @foreach (var achievement in AchievementCatalog.All.Where(a => a.Scope == AchievementScope.InterParties))
+        {
+            <div class="col">
+                <AchievementBadge Info="achievement" Unlocked="_profile.Achievements.Contains(achievement.Id)" />
+            </div>
+        }
+    </div>
+
+    <h2 class="h5 mt-4">Succès de partie</h2>
+    <p class="text-muted">Se débloquent en une seule partie.</p>
+    <div class="row row-cols-1 row-cols-md-2 g-3">
+        @foreach (var achievement in AchievementCatalog.All.Where(a => a.Scope == AchievementScope.Partie))
         {
             <div class="col">
                 <AchievementBadge Info="achievement" Unlocked="_profile.Achievements.Contains(achievement.Id)" />

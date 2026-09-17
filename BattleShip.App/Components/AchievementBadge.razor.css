@@ -9,6 +9,13 @@
     padding: 0.75rem 1rem;
 }
 
+/* Contour marquant pour repérer un succès débloqué au premier coup d'œil, sans avoir à lire le texte ni
+   comparer la couleur (discrète) de l'icône. */
+.achievement-badge.unlocked {
+    border: 2px solid var(--dore, #FFD966);
+    box-shadow: 0 0 0 0.2rem rgba(255, 217, 102, 0.35);
+}
+
 /* Silhouette tant que verrouillé : même image, recolorée par masque CSS (fonctionne quelle que soit la
    couleur d'origine du SVG, voir wwwroot/img/succes/CREDITS.md). */
 .achievement-icon {
