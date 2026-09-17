@@ -1,0 +1,42 @@
+@page "/mes-succes"
+@inject HttpClient Http
+@inject PlayerSession PlayerSession
+@using System.Net.Http.Json
+@using BattleShip.App.Components
+@using BattleShip.App.Game
+@using BattleShip.Models.Contracts
+
+<PageTitle>Mes succès</PageTitle>
+
+<h1>Mes succès</h1>
+
+@if (_profile is null)
+{
+    <p>Chargement…</p>
+}
+else
+{
+    <p>
+        @_profile.HardVictories victoire@(_profile.HardVictories > 1 ? "s" : "") cumulée@(_profile.HardVictories > 1 ? "s" : "")
+        en difficulté Difficile. Tous les succès sont visibles ci-dessous, débloqués en doré, verrouillés en silhouette.
+    </p>
+
+    <div class="row row-cols-1 row-cols-md-2 g-3">
+        @foreach (var achievement in AchievementCatalog.All)
+        {
+            <div class="col">
+                <AchievementBadge Info="achievement" Unlocked="_profile.Achievements.Contains(achievement.Id)" />
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private PlayerProfileDto? _profile;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var playerId = await PlayerSession.GetOrCreatePlayerIdAsync();
+        _profile = await Http.GetFromJsonAsync<PlayerProfileDto>($"api/players/{playerId}");
+    }
+}

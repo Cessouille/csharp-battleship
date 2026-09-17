@@ -1,0 +1,14 @@
+@using BattleShip.App.Game
+
+<div class="achievement-badge @(Unlocked ? "unlocked" : "locked")">
+    <div class="achievement-icon" style="--icon-url: url('@Info.ImagePath')" role="img" aria-label="@Info.Name"></div>
+    <div class="achievement-text">
+        <h3 class="h6">@Info.Emoji @Info.Name</h3>
+        <p>@Info.Description</p>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public AchievementInfo Info { get; set; } = null!;
+    [Parameter] public bool Unlocked { get; set; }
+}

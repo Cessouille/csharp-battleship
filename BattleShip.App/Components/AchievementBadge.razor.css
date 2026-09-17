@@ -1,0 +1,39 @@
+.achievement-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    height: 100%;
+    background-color: rgba(255, 255, 255, 0.5);
+    border: 1px solid var(--lilas, #E9C6FF);
+    border-radius: 1.25rem;
+    padding: 0.75rem 1rem;
+}
+
+/* Silhouette tant que verrouillé : même image, recolorée par masque CSS (fonctionne quelle que soit la
+   couleur d'origine du SVG, voir wwwroot/img/succes/CREDITS.md). */
+.achievement-icon {
+    flex: 0 0 auto;
+    width: 2.75rem;
+    height: 2.75rem;
+    -webkit-mask: var(--icon-url) no-repeat center / contain;
+    mask: var(--icon-url) no-repeat center / contain;
+    background-color: var(--lilas, #E9C6FF);
+}
+
+.achievement-badge.unlocked .achievement-icon {
+    background-color: var(--dore, #FFD966);
+}
+
+.achievement-text h3 {
+    margin: 0;
+    color: var(--rose-fonce, #B0177A);
+}
+
+.achievement-text p {
+    margin: 0;
+    font-size: 0.85rem;
+}
+
+.achievement-badge.locked .achievement-text p {
+    opacity: 0.7;
+}
