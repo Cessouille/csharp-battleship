@@ -241,10 +241,13 @@ mêmes quotas.
 
 Le premier lot (TICKET-00 à TICKET-04) est entièrement livré. Cette deuxième vague part des limites déjà
 documentées dans `README.md` § *Limites connues* et des trous relevés par `docs/audits/documentation.md`,
-et non d'une nouvelle recherche web sur les variantes du jeu. **Aucun ordre d'implémentation n'est acté** :
-contrairement à la première vague, ces tickets restent au statut `proposé` avec leurs propres questions
-ouvertes tant que le binôme ne les a pas tranchées. À titre indicatif seulement (non décidé), un gradient
-plausible du moins invasif au plus invasif serait TICKET-08 → TICKET-07 → TICKET-06 → TICKET-10 → TICKET-09.
+et non d'une nouvelle recherche web sur les variantes du jeu. **Aucun ordre d'implémentation n'était acté au
+départ** : contrairement à la première vague, ces tickets sont restés au statut `proposé` avec leurs propres
+questions ouvertes jusqu'à ce que le binôme les tranche un par un — TICKET-06, TICKET-07, TICKET-08 et
+TICKET-10 sont depuis passés `livré` (voir leurs sections ci-dessous) ; TICKET-09 et TICKET-11 restent
+`proposé`, non tranchés faute de temps. Le gradient plausible envisagé au départ (TICKET-08 → TICKET-07 →
+TICKET-06 → TICKET-10 → TICKET-09) n'a pas été suivi à la lettre : TICKET-09 a été dépriorisé plutôt
+qu'implémenté après TICKET-10.
 
 Le placement manuel de flotte (ADR 0013), livré après le dernier arbitrage du 2026-09-15, n'avait jamais
 été documenté dans ce fichier : TICKET-05 comble cet oubli a posteriori.
@@ -440,17 +443,20 @@ partie (ADR 0009) ; testés séparément.
 
 Cette vague part d'une liste d'idées du binôme, complétée par cinq propositions de l'IA pensées pour le thème
 visuel actuel de l'App (palette `--rose-vif` / `--lilas` / `--dore` / `--creme` de `wwwroot/css/app.css`,
-polices Fredoka/Quicksand). **Rien n'est acté** : tous les tickets et tous les succès sont au statut `proposé`,
-l'origine de chaque idée est tracée (binôme ou IA) et les noms de succès sont des suggestions.
+polices Fredoka/Quicksand). L'origine de chaque idée est tracée (binôme ou IA). **Livrée entièrement** (commit
+`4864370`, « feat: ajout des succès ») : les trois tickets et les 11 succès sont au statut `livré`, décisions
+détaillées dans `docs/adr/0017-systeme-de-succes.md` et `docs/adr/0018-profil-joueur-anonyme.md`. Cette entrée
+n'a été mise à jour qu'après coup, à l'occasion de l'audit `docs/audits/documentation.md` du 2026-09-17 qui a
+relevé l'écart entre ce fichier (encore `proposé`) et le code déjà livré.
 
 Découpage :
 - **TICKET-12** — socle technique commun (évaluation serveur, stockage, contrat, affichage) ;
 - **TICKET-13** — catalogue des succès évaluables **dans une seule partie** (S-01, S-02, S-04 à S-11) ;
 - **TICKET-14** — succès **inter-parties**, qui imposent un profil joueur (S-03).
 
-Ordre indicatif, **non décidé** : TICKET-12 → succès à lecture directe (S-02, S-05, S-07, S-09, S-11) →
-succès qui parcourent le journal (S-04, S-10) → succès à motif (S-01 puis S-08, même moteur) → S-06 (dépend
-d'un arbitrage sur le moment d'évaluation) → TICKET-14.
+Ordre effectivement suivi : TICKET-12 (socle) livré avec l'intégralité de TICKET-13 et TICKET-14 en une seule
+passe plutôt qu'en plusieurs — voir ADR 0017 pour la justification (périmètre regroupé plutôt que livré succès
+par succès).
 
 ### Récapitulatif du catalogue
 
@@ -472,7 +478,7 @@ d'un arbitrage sur le moment d'évaluation) → TICKET-14.
 
 ## TICKET-12 — Socle du système de succès
 
-**Statut** : proposé
+**Statut** : livré (ADR 0017)
 
 **Description** : des succès se débloquent pendant une partie selon ce que fait le joueur ; ils sont détectés
 par le serveur, conservés avec la partie et affichés dans l'App (notification au déblocage + panneau de badges).
@@ -517,26 +523,32 @@ par le serveur, conservés avec la partie et affichés dans l'App (notification 
 - **ADR obligatoire** (changement de représentation de l'état) : `0017-systeme-de-succes.md`.
 - README : fonctionnalités livrées + limites connues à mettre à jour à la livraison.
 
-**Questions à trancher** :
-- Succès **visibles verrouillés** avec leur condition, ou **secrets** jusqu'au déblocage (le cœur et le nœud
-  papillon se prêtent bien au secret) ?
-- Évaluation **à chaque tour** (retour immédiat, cohérent avec le journal) ou **en fin de partie seulement**
-  (plus simple, mais S-01/S-04/S-07/S-08/S-10 perdent leur effet « surprise ») ?
-- Périmètre de la première livraison : TICKET-12 + TICKET-13 seuls, ou TICKET-14 inclus ?
+**Décisions tranchées** (voir ADR 0017 pour le détail et les alternatives écartées) :
+- Succès **visibles verrouillés** avec leur condition — pas de secret, cohérent avec le panneau « Mes succès ».
+- Évaluation **à chaque tour** (`Game.CompleteTurn`), plus une fois à la construction pour Rangée parfaite.
+- Périmètre livré en une seule passe : TICKET-12 + TICKET-13 + TICKET-14 (profil joueur, ADR 0018 inclus).
 
-**Tests attendus** :
-- un coup refusé (case déjà jouée, hors grille, partie terminée) ne débloque aucun succès ;
-- un succès débloqué reste présent jusqu'à la fin de la partie ;
-- chaque règle testée en positif **et** en négatif (voir TICKET-13) : un test qui échoue si la règle est neutralisée ;
-- round-trip REST et gRPC de la liste de succès ;
-- aucun succès ne se débloque sur une partie dont l'évaluateur n'a lu que des cases adverses non découvertes
-  (test de non-fuite dans le style des tests `BoardViewMapper` existants).
+**Réalisé** :
+- `BattleShip.Models/Achievements/` : `AchievementId`, `IAchievementRule` (une classe par succès),
+  `AchievementRules.All` (catalogue déclaratif), `AchievementContext` (anti-fuite structurelle, ne reçoit que
+  ce que le joueur voit déjà de sa propre partie).
+- `Game.Achievements` (`IReadOnlyList<AchievementId>`), alimenté par `EvaluateAchievements()` — chokepoint
+  unique, ajout seul jamais retiré.
+- Contrat : `GameStateDto.Achievements`, `TurnResultDto.Achievements` ; proto `repeated string achievements = 9`
+  dans `GameStateReply`. `ScanZoneReply`/`PlaySalvoReply` en héritent via leur `state` imbriqué.
+- App : `AchievementCatalog` (présentation), `AchievementBadge.razor`/`AchievementToast.razor` (affichage),
+  page `Pages/Achievements.razor` (`/mes-succes`), groupée par portée (`AchievementScope.Partie` /
+  `InterParties`).
+- `Engine/Achievements/AchievementEvaluationTests.cs`, `Engine/Achievements/AchievementRulesCoverageTests.cs`
+  (chaque règle en positif et en négatif), `Contracts/AchievementLeakTests.cs`
+  (`TwoGamesWithIdenticalVisibleProjection_UnlockTheSameAchievements`), `Api/AchievementsContractTests.cs`
+  (round-trip REST et gRPC).
 
 ---
 
 ## TICKET-13 — Catalogue des succès intra-partie
 
-**Statut** : proposé — dépend de TICKET-12
+**Statut** : livré (ADR 0017)
 
 Chaque succès ci-dessous est une règle indépendante. « Tir du joueur » désigne un `ShotResolution` de
 `PlayerShots`, quelle que soit l'action qui l'a produit (tir, salve, arme), sauf arbitrage contraire.
@@ -554,8 +566,8 @@ X X X X X
 . . X . .
 ```
 
-**Questions à trancher** : motif exact ; des tirs supplémentaires dans la fenêtre (sur les cases `.`)
-invalident-ils le dessin ? ; les cases ratées traversées par une torpille comptent-elles comme « dessinées » ?
+**Décision (ADR 0017)** : motif ci-dessus retenu tel quel ; des tirs supplémentaires dans la fenêtre
+n'invalident pas le dessin ; aucune rotation acceptée (translation seule).
 
 **Tests attendus** : motif complet n'importe où dans la grille → débloqué ; motif à une case près → non ;
 motif collé au bord droit/bas (fenêtre qui tient tout juste) → débloqué.
@@ -564,8 +576,8 @@ motif collé au bord droit/bas (fenêtre qui tient tout juste) → débloqué.
 
 **Condition** : `Winner == Human` et aucun navire de `HumanBoard.Ships` n'est `IsSunk`.
 
-**Questions à trancher** : « perdre un bateau » = navire **coulé**, ou le nom suggère-t-il **aucune case
-touchée** (beaucoup plus difficile) ?
+**Décision (ADR 0017)** : « perdre un bateau » = navire **coulé** (`Ship` n'expose pas les touches partielles,
+« aucune case touchée » n'est pas observable).
 
 **Tests attendus** : victoire avec un navire coulé → non ; victoire flotte intacte → débloqué ; partie en
 cours flotte intacte → non (la condition exige la victoire).
@@ -575,9 +587,8 @@ cours flotte intacte → non (la condition exige la victoire).
 **Condition** : 5 tirs du joueur consécutifs, dans l'ordre du journal, dont le `Outcome` est `Hit` ou `Sunk` ;
 un `Miss` remet la série à zéro.
 
-**Questions à trancher** : un scan radar (aucun tir) interrompt-il la série ? ; en Salvo, l'ordre à l'intérieur
-d'une salve est-il celui envoyé par le joueur ? ; les `Miss` produits par la traversée d'une torpille cassent-ils
-la série (comportement par défaut si l'on lit `PlayerShots` tel quel) ?
+**Décision (ADR 0017)** : un scan n'interrompt pas la série (aucune résolution contribuée) ; l'ordre d'une salve
+est celui envoyé par le joueur ; les `Miss` d'une torpille traversant des cases vides cassent la série.
 
 **Tests attendus** : touche ×4 puis raté puis touche → non ; 5 touches réparties sur 5 tours classiques →
 débloqué ; case déjà jouée refusée au milieu de la série → série intacte (le refus n'est pas dans le journal).
@@ -587,8 +598,8 @@ débloqué ; case déjà jouée refusée au milieu de la série → série intac
 **Condition** : `Winner == Human` et `ShotsReceived` contient les quatre coins `(0,0)`, `(0,9)`, `(9,0)`,
 `(9,9)` (bornes dérivées de `BoardGrid.Size`, pas codées en dur).
 
-**Questions à trancher** : le tir gagnant doit-il lui-même tomber dans un coin ? ; un coin atteint par une
-frappe aérienne ou traversé par une torpille compte-t-il ?
+**Décision (ADR 0017)** : le tir gagnant n'a pas à tomber lui-même dans un coin ; toute résolution qui marque
+la case d'un coin (tir classique, salve, torpille, frappe) compte, `FourCornersRule` ne distingue pas la source.
 
 **Tests attendus** : 3 coins + victoire → non ; 4 coins + défaite → non ; 4 coins + victoire → débloqué.
 
@@ -598,13 +609,11 @@ frappe aérienne ou traversé par une torpille compte-t-il ?
 Faisable avec la flotte standard (5 + 4 + 3 + 3 + 2 = 17 cases ≤ 20) grâce au placement manuel (TICKET-05,
 ADR 0013).
 
-**Questions à trancher** :
-- **moment d'évaluation** : à la création, le succès s'obtient en créant une partie puis en l'abandonnant ;
-  l'exiger en fin de partie **gagnée** évite ce contournement ;
-- le torpilleur **vertical** qui enjambe exactement les deux lignes est-il accepté, ou tous les navires
-  doivent-ils être horizontaux ? ;
-- les deux lignes doivent-elles être adjacentes ? ;
-- un placement **aléatoire** qui tomberait par hasard sur deux lignes compte-t-il ?
+**Décision (ADR 0017)** : évaluée **dès la création** de la partie — obtenable sans gagner ni même tirer un
+coup, arbitrage assumé plutôt que le moment « fin de partie gagnée » envisagé pour éviter ce contournement ;
+un navire vertical à cheval sur les deux lignes est accepté ; les deux lignes n'ont pas besoin d'être
+adjacentes ; un placement aléatoire qui tomberait sur deux lignes compte aussi (`PerfectRowRule` ne distingue
+pas l'origine du placement).
 
 **Tests attendus** : flotte sur 3 lignes → non ; flotte sur 2 lignes (placement manuel) + condition de
 moment retenue → débloqué ; placement manuel refusé (chevauchement) → aucune partie, aucun succès.
@@ -614,8 +623,9 @@ moment retenue → débloqué ; placement manuel refusé (chevauchement) → auc
 **Condition** : le premier tir du joueur de toute la partie (premier `ShotResolution` du premier
 `TurnResult` dont `PlayerShots` n'est pas vide) a un `Outcome` `Hit` ou `Sunk`.
 
-**Questions à trancher** : si la première action est un scan radar, le premier tir compte-t-il encore ? ; en
-Salvo, faut-il la première case de la salve ou au moins une touche dans la première salve ?
+**Décision (ADR 0017)** : un scan préalable ne disqualifie pas (il ne contribue aucune résolution) — le premier
+tir cherché reste le premier `ShotResolution` du premier tour qui en contient un ; en Salvo, c'est la première
+case de la salve (premier élément de `PlayerShots`) qui doit toucher, pas « au moins une touche dans la salve ».
 
 **Tests attendus** : premier tir raté puis touche au second → non ; premier tir touché → débloqué ; scan puis
 tir touché → selon l'arbitrage.
@@ -632,7 +642,8 @@ X X . X X
 X . . . X
 ```
 
-**Questions à trancher** : identiques à S-01 ; accepter aussi le nœud tourné d'un quart de tour ?
+**Décision (ADR 0017)** : identique à S-01 (translation seule, tirs en plus dans la fenêtre tolérés) ; le nœud
+tourné d'un quart de tour n'est **pas** accepté (même moteur `ShotPatternRule`, aucune rotation).
 
 **Tests attendus** : identiques à S-01 ; le cœur complet ne débloque pas le nœud et inversement.
 
@@ -641,8 +652,9 @@ X . . . X
 **Condition** : `Winner == Human` avec `Options.Radar`, `Options.ShotMode == Salvo` et
 `Options.SpecialWeapons` tous activés.
 
-**Questions à trancher** : faut-il avoir réellement **utilisé** au moins un scan et une arme (sinon cocher les
-cases suffit) ? ; une difficulté minimale est-elle exigée ?
+**Décision (ADR 0017)** : oui, radar et arme doivent avoir été **réellement utilisés** au moins une fois (pas
+seulement les options cochées) ; Salvo n'a pas d'équivalent « utiliser » (mode figé pour toute la partie), donc
+seule son activation est requise ; aucune difficulté minimale exigée.
 
 **Tests attendus** : une option manquante + victoire → non ; toutes les options + défaite → non ; toutes les
 options + victoire → débloqué.
@@ -651,9 +663,8 @@ options + victoire → débloqué.
 
 **Condition** : un `TurnResult` du joueur avec `PlayerWeapon` non nul contient un tir `Sunk`.
 
-**Questions à trancher** : suffit-il que l'arme porte le coup de grâce, ou le navire doit-il être coulé
-**entièrement** par l'arme (aucune touche antérieure) ? La version stricte n'est réaliste qu'avec la frappe
-aérienne sur le torpilleur (2 cases) ou un navire de 3 cases.
+**Décision (ADR 0017)** : le coup de grâce suffit — le navire peut avoir déjà été endommagé par un tir
+classique lors d'un tour précédent, pas de version stricte « coulé entièrement par l'arme ».
 
 **Tests attendus** : arme qui touche sans couler → non ; tir classique qui coule → non ; arme qui coule → débloqué.
 
@@ -671,7 +682,7 @@ S-11 ne peuvent jamais être débloqués ensemble dans la même partie.
 
 ## TICKET-14 — Succès inter-parties et profil joueur
 
-**Statut** : proposé — dépend de TICKET-12
+**Statut** : livré (ADR 0018)
 
 **Description** : succès cumulés sur plusieurs parties. Premier cas : **S-03 — 👑 Reine du difficile** (idée
 du binôme), gagner 3 parties en difficulté `Hard`.
@@ -681,26 +692,34 @@ aucune notion de joueur ; stockage en mémoire perdu au redémarrage (ADR 0006) 
 « historique et statistiques » et tout compte joueur. Ce ticket **revient sur cet arbitrage** : à assumer et à
 documenter comme tel.
 
-**Options envisagées (aucune retenue)** :
-- **A — identifiant joueur anonyme** : le serveur génère un identifiant, l'App le conserve dans le navigateur et
-  l'envoie à la création de partie ; le profil (compteurs, succès) vit en mémoire serveur, perdu au redémarrage
-  comme les parties. Cohérent avec ADR 0006 ; compteur incrémenté **par le serveur** à la victoire.
-- **B — compteur côté client uniquement** (`localStorage`) : écartée a priori, le client deviendrait source de
-  vérité et le succès serait falsifiable depuis la console du navigateur.
-- **C — persistance réelle** (base de données) : hors budget du projet, contredit l'ADR 0006.
+**Options envisagées** (voir ADR 0018 pour le détail) :
+- **A — identifiant joueur anonyme, profil dérivé sans état stocké** (retenue) : le serveur génère un
+  identifiant, l'App le conserve dans le `localStorage` et l'envoie à la création de partie ; le profil
+  (compteurs, succès) est **recalculé à chaque lecture** à partir des parties connues pour ce joueur — pas un
+  compteur accumulé séparément. Cohérent avec l'ADR 0006 ; aucun risque de double-comptage puisqu'il n'y a rien
+  à synchroniser.
+- **B — compteur côté client uniquement** (`localStorage`) : écartée, le client deviendrait source de vérité et
+  le succès serait falsifiable depuis la console du navigateur.
+- **C — persistance réelle** (base de données) : écartée, hors budget du projet, contredit l'ADR 0006.
 
-**Impact technique (option A)** : `PlayerProfile` + `InMemoryPlayerStore` ; identifiant joueur dans
-`CreateGameRequestDto` et le proto (champ ajouté), validé par FluentValidation ; lecture du profil par un
-endpoint REST ou un RPC ; **ADR obligatoire** ; README (arbitrages + limites connues : sans authentification,
-quiconque connaît l'identifiant lit le profil, même limite que les GUID de partie).
+**Réalisé** :
+- `PlayerProfile.Project` (projection pure, pas de store de profil séparé) + `GameOutcome` (instantané
+  anonymisé construit sous verrou) dans `BattleShip.Models/Achievements/PlayerProfile.cs`.
+- `InMemoryGameStore` gagne un index `playerId → gameIds` (`FindByPlayer`), pas un second store.
+- `CreateGameRequestDto.PlayerId` (GUID optionnel, forme validée par FluentValidation, aucune existence
+  préalable requise) ; **contrat REST seul** (`POST /api/players`, `GET /api/players/{playerId:guid}`) — pas de
+  RPC, le flux gRPC-Web obligatoire du cours est déjà couvert par `GetGameState`/`ScanZone`/`PlaySalvo`.
+- `PlayerSession` côté App (`localStorage`, création à la volée).
+- « 3 parties » = **cumulées**, pas nécessairement consécutives ; une partie non terminée ou perdue n'incrémente
+  rien.
+- README (arbitrages + limites connues) mis à jour : sans authentification, quiconque connaît l'identifiant lit
+  le profil, même limite que les GUID de partie. Un seul succès inter-parties livré (S-03) — le coût d'un
+  second aurait été à repeser, non tranché faute d'un second candidat retenu par le binôme.
 
-**Questions à trancher** : option A retenue ? ; « 3 parties » cumulées ou consécutives ? ; une partie non
-terminée compte-t-elle comme une défaite ? ; d'autres succès inter-parties sont-ils envisagés (sinon TICKET-14
-se réduit à un seul succès, coût à peser) ?
-
-**Tests attendus** : 3 victoires `Hard` → débloqué ; 2 `Hard` + 1 `Medium` → non ; une défaite n'incrémente
-rien ; identifiant joueur inconnu ou malformé → 400/404 (REST) et `InvalidArgument`/`NotFound` (gRPC) ; deux
-victoires concurrentes du même joueur incrémentent bien deux fois (pattern de TICKET-08).
+**Tests** : `Engine/Achievements/PlayerProfileTests.cs` (3 victoires `Hard` → débloqué ; 2 `Hard` + 1 `Medium` →
+non ; défaite ou partie non terminée → aucun décompte ; victoires non consécutives comptées quand même) ;
+`Api/PlayerEndpointsTests.cs` (identifiant malformé dans le corps → 400 ; GUID malformé dans la route → 404 ;
+identifiant inconnu → profil vide, pas une erreur ; deux joueurs ne voient jamais les parties l'un de l'autre).
 
 ---
 

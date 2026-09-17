@@ -153,3 +153,28 @@ Recommandation confirmée inchangée (placement groupé à la création, sans no
 
 **Preuves et limites**
 `docs/adr/0013-placement-manuel.md` (section Contexte, référence diapo 36), plan de la session (`~/.claude/plans/contexte-aujourd-hui-le-agile-fern.md`). Limite : l'absence de mandat explicite dans le support ne prouve pas que l'architecture choisie est la meilleure possible, seulement qu'aucune des deux options proposées ne viole une contrainte du socle — le choix final entre les deux reste un arbitrage d'ingénierie (moins d'état à tester/expliquer), pas une obligation du cours.
+
+---
+
+## Revue : le système de succès livré respecte-t-il vraiment la règle anti-fuite, ou seulement par argument de type ?
+
+**Proposition examinée**
+Code livré par le commit `4864370` (« feat: ajout des succès ») : `AchievementContext` (`BattleShip.Models/Achievements/AchievementContext.cs`) affirme en commentaire un anti-triche « structurel », calqué explicitement sur l'argument déjà validé pour `IComputerTargeting` (ADR 0008, revue ci-dessus) — une règle de succès ne recevrait jamais `ComputerBoard.Ships`, seulement une projection de ce que le joueur voit déjà.
+
+**Hypothèse à vérifier**
+1) L'argument de type ne suffit pas seul (même limite que la revue ADR 0008) : `AchievementContext.From(Game)` pourrait très bien être modifié pour inclure une information cachée sans que la signature de `IAchievementRule.IsUnlocked(AchievementContext)` ne bouge — il faut un test comportemental qui échouerait dans ce cas, pas seulement une lecture de type. 2) Le test qui prétend jouer ce rôle (`AchievementLeakTests.TwoGamesWithIdenticalVisibleProjection_UnlockTheSameAchievements`) ne passe pas trivialement (par exemple parce qu'aucun succès n'est jamais débloqué dans le scénario testé).
+
+**Scénario**
+Lecture de `AchievementContext.From` : construit exclusivement `game.Options`, `game.Winner`, `game.Status`, `game.History`, `game.ComputerBoard.ShotsReceived` (les propres tirs du joueur) et une projection de `game.HumanBoard.Ships` (sa propre flotte) — jamais `game.ComputerBoard.Ships`. Lecture ligne à ligne du test `AchievementLeakTests` : deux parties construites avec un navire adverse caché à des positions différentes (`(0,0)` vs `(9,9)`), jamais visées par la séquence de tirs jouée (le motif du cœur, fenêtre `(2,2)`-`(6,6)`) ; la même séquence de tirs est rejouée sur les deux parties, puis les deux listes de succès débloqués sont comparées avec `Assert.Equal`. Un garde-fou explicite (`Assert.NotEmpty(...Achievements)`) empêche le test de passer trivialement en comparant deux listes vides.
+
+**Résultat réellement observé**
+Par lecture du code (aucune exécution de `dotnet test` possible dans cette session : aucun SDK .NET 10 n'était installé dans cet environnement, contrainte différente des revues précédentes qui avaient pu relancer la suite) :
+- `AchievementContext.From` ne référence textuellement aucun champ de `ComputerBoard` autre que `ShotsReceived` (grep sur le fichier) : l'argument de type tient à la lecture.
+- Le test `AchievementLeakTests` construit bien un scénario où la seule différence entre les deux parties est une case jamais visée de la flotte cachée, avec un garde-fou anti-trivialité — sa conception correspond à ce qu'exige l'hypothèse 2, contrairement à un test qui se contenterait de comparer deux parties identiques en tout point (ce qui prouverait uniquement le déterminisme, pas l'absence de fuite).
+- Le rapport d'audit indépendant `docs/audits/bugs-lint.md` (même commit `4864370`, exécuté séparément avec `dotnet test`) rapporte 265/265 tests verts, `AchievementLeakTests` inclus — c'est la seule confirmation d'exécution disponible pour cette session, pas une exécution que cette revue a effectuée elle-même.
+
+**Décision et justification**
+Test et argument acceptés tels quels, avec une réserve consignée plutôt qu'omise : cette revue n'a pas pu reproduire l'exercice de neutralisation manuelle des revues précédentes (retirer volontairement la garde anti-fuite, observer l'échec, restaurer) faute d'environnement d'exécution .NET 10 disponible dans cette session. La conclusion s'appuie sur la lecture du code et sur l'exécution déjà réalisée par un audit indépendant du même commit, pas sur une vérification dynamique menée ici.
+
+**Preuves et limites**
+`BattleShip.Models/Achievements/AchievementContext.cs`, `BattleShip.Tests/Contracts/AchievementLeakTests.cs`, `BattleShip.Tests/Engine/Achievements/AchievementEvaluationTests.cs` (`AchievementContextTests.Context_ExposesNoOpponentFleet`, test structurel par réflexion complémentaire), `docs/audits/bugs-lint.md` (2026-09-17, commit `4864370`). Limite explicite : contrairement aux revues précédentes de ce fichier, celle-ci n'a vérifié la propriété que par lecture statique et par un rapport d'exécution tiers, pas par une neutralisation exécutée dans cette session — à refaire avec `dotnet test` dès qu'un SDK .NET 10 est disponible, pour retrouver le niveau de preuve des revues précédentes.

@@ -22,19 +22,19 @@ Depuis la racine du dépôt, dans deux terminaux distincts (API puis App) :
 
 ```
 dotnet build BattleShip.slnx
-dotnet run --project BattleShip.API --launch-profile https   # https://localhost:7186
-dotnet run --project BattleShip.App --launch-profile https   # https://localhost:7206
+dotnet run --project BattleShip.API --launch-profile https   # https://localhost:8080
+dotnet run --project BattleShip.App --launch-profile https   # https://localhost:3000
 ```
 
-Ouvrir `https://localhost:7206` dans le navigateur. L'API doit être lancée en premier (l'App en dépend pour REST et gRPC-Web).
+Ouvrir `https://localhost:3000` dans le navigateur. L'API doit être lancée en premier (l'App en dépend pour REST et gRPC-Web).
 
 ### Hot-reload en développement
 
 Pour recompiler et relancer automatiquement à chaque modification, remplacer `dotnet run` par `dotnet watch` (mêmes projets, mêmes ports) :
 
 ```
-dotnet watch --project BattleShip.API --launch-profile https   # https://localhost:7186
-dotnet watch --project dBattleShip.App --launch-profile https   # https://localhost:7206
+dotnet watch --project BattleShip.API --launch-profile https   # https://localhost:8080
+dotnet watch --project BattleShip.App --launch-profile https   # https://localhost:3000
 ```
 
 - API : le serveur redémarre automatiquement à chaque modification d'un fichier `.cs`.
@@ -73,12 +73,29 @@ Toutes les options se cochent sur l'accueil et se combinent ; la partie classiqu
   le navigateur : cocher « Radar », faire deux scans, puis tenter un troisième → message
   `Plus aucun scan radar disponible (gRPC FailedPrecondition)`.
 - **Salvo** (ADR 0011) : chaque tour, exactement un tir par navire encore à flot, pour le joueur comme pour
-  l'ordinateur. Sélectionner les cases puis « Tirer la salve » (`POST /api/games/{id}/salvos`). Une salve de
+  l'ordinateur. Sélectionner les cases puis « Tirer la salve », transmise en **gRPC-Web** (`rpc PlaySalvo`, ADR
+  0014) ; l'équivalent REST (`POST /api/games/{id}/salvos`) reste disponible pour d'autres clients. Une salve de
   mauvaise taille est refusée en entier, sans qu'aucun de ses tirs ne soit appliqué.
 - **Armes spéciales** (ADR 0012) : une torpille (part d'un bord et s'arrête sur le premier navire touché) et une
   frappe aérienne de 3 cases alignées par camp, l'ordinateur compris (`POST /api/games/{id}/torpedoes`,
   `POST /api/games/{id}/airstrikes`). Chaque arme remplace tout le tour.
+- **Placement manuel de la flotte** (ADR 0013) : à la création, le joueur choisit entre tirage aléatoire (défaut)
+  et pose manuelle case par case (clic + orientation) ; l'ordinateur reste toujours placé au hasard.
+- **IA à difficulté réglable** (ADR 0015) : trois paliers choisis à la création — Facile (tir aléatoire), Moyen
+  (chasse/cible sans grille de densité), Difficile (grille de probabilité, défaut historique inchangé).
 - Les options sont décrites par `docs/adr/0009-options-de-partie.md`.
+
+## Autres fonctionnalités livrées au-delà du socle
+
+- **Journal de partie** (ADR 0016) : panneau listant, tour par tour, chaque coup joué et la riposte de
+  l'ordinateur ; stocké côté serveur, survit à un rechargement de page.
+- **Système de succès** (ADR 0017) : 11 succès détectés côté serveur à partir de ce que le joueur voit déjà de
+  sa propre partie (ses tirs, sa flotte, les options) — jamais des positions adverses non découvertes. Affichés
+  en notification au déblocage et sur la page **Mes succès** (`/mes-succes`).
+- **Profil joueur anonyme** (ADR 0018) : identifiant généré côté serveur et conservé dans le `localStorage` du
+  navigateur (`POST /api/players`), utilisé pour dériver un profil (victoires en Difficile, succès cumulés) sans
+  aucun état de profil stocké séparément (`GET /api/players/{id}`, recalculé à chaque appel à partir des parties
+  connues pour ce joueur).
 
 ## Arbitrages du backlog
 
@@ -87,27 +104,41 @@ stockage de partie en mémoire (pas de persistance, pas de compte joueur, voir `
 Le socle a d'abord été livré avec un adversaire à tir aléatoire (`docs/adr/0004-strategie-adversaire.md`), remplacé
 ensuite par la grille de probabilité (`docs/adr/0008-ia-grille-probabilite.md`).
 
-Pistes du backlog explicitement écartées pour cette itération, avec la raison : multijoueur (nécessiterait une
-machine à état "à qui le tour", voir `docs/adr/0001-modele.md`), sauvegarde/persistance, historique et
-statistiques, personnalisation du placement de la flotte par le joueur. Aucune de ces pistes n'était nécessaire
-pour démontrer le parcours complet exigé par le socle.
+Pistes du backlog explicitement écartées pour le socle (première itération), avec la raison : multijoueur
+(nécessiterait une machine à état "à qui le tour", voir `docs/adr/0001-modele.md`), sauvegarde/persistance,
+personnalisation du placement de la flotte par le joueur. Aucune de ces pistes n'était nécessaire pour démontrer
+le parcours complet exigé par le socle. Deux d'entre elles ont depuis été revisitées comme extensions : le
+placement manuel (ADR 0013) et, sous une forme limitée assumée par l'ADR 0006 (état de partie toujours en
+mémoire, pas de vraie persistance), un historique inter-parties via le profil joueur (ADR 0018).
 
 Extensions retenues puis livrées au-delà du socle, dans cet ordre : adversaire par grille de probabilité,
-options de partie à la création, radar en gRPC-Web, mode Salvo symétrique, armes spéciales. L'ordre va du moins
-invasif (aucun changement de contrat) au plus invasif (refonte de la résolution d'un tour). Règles tranchées par
-le binôme et détail par ticket dans `docs/ticket.md`. Écarté : navires en formes libres (tétrominos), qui aurait
-imposé de refaire toute la validation du placement.
+options de partie à la création, radar en gRPC-Web, mode Salvo symétrique, armes spéciales, puis (deuxième et
+troisième vagues) placement manuel de la flotte, IA à difficulté réglable, Salve en second flux gRPC-Web,
+journal de partie affiché en direct, système de succès et profil joueur anonyme. L'ordre va du moins invasif
+(aucun changement de contrat) au plus invasif (refonte de la résolution d'un tour, ou nouvelle représentation
+d'état pour les succès/le profil). Règles tranchées par le binôme et détail par ticket dans `docs/ticket.md`.
+Écarté : navires en formes libres (tétrominos), qui aurait imposé de refaire toute la validation du placement.
+Grille et flotte configurables (TICKET-09) et tests de composants Blazor bUnit (TICKET-11) restent au statut
+`proposé` dans `docs/ticket.md`, non tranchés par le binôme faute de temps.
 
 ## Limites connues
 
-- L'état des parties est perdu au redémarrage de l'API (stockage en mémoire, voir ADR 0006).
-- Aucune authentification : quiconque connaît l'identifiant (GUID) d'une partie peut la consulter/y jouer.
-- L'adversaire n'a pas de niveau de difficulté réglable : la grille de probabilité est toujours utilisée.
+- L'état des parties (et le profil joueur, qui en est dérivé) est perdu au redémarrage de l'API (stockage en
+  mémoire, voir ADR 0006).
+- Aucune authentification : quiconque connaît l'identifiant (GUID) d'une partie peut la consulter/y jouer, et
+  quiconque connaît un identifiant joueur peut lire son profil (`GET /api/players/{id}`, même limite assumée
+  dans l'ADR 0018).
 - Avec les armes spéciales, l'ordinateur lance sa torpille dès son premier tour (heuristique simple, ADR 0012).
 - La règle de la frappe aérienne sur des cases déjà jouées (ignorées) a été déduite de celle de la torpille et
   reste à confirmer par le binôme.
 - Le radar est réservé au joueur (asymétrie assumée, ADR 0010).
-- Le placement de la flotte est toujours aléatoire ; le joueur ne choisit pas la disposition de ses navires.
+- Le catalogue de succès est verrouillé (11 identifiants figés, jamais renommés) ; plusieurs points de règle
+  fins de chaque succès (motif exact du cœur/nœud papillon, interruption d'une série par un scan, etc.) sont
+  des arbitrages assumés documentés directement dans le code des règles et dans l'ADR 0017, pas des règles
+  universellement établies de bataille navale.
+- Le profil joueur (ADR 0018) est une projection recalculée à chaque lecture, sans aucune protection contre un
+  navigateur qui viderait son `localStorage` : un joueur qui perd son identifiant perd l'accès à son historique
+  de succès, sans possibilité de le retrouver.
 
 ## Documentation complémentaire
 

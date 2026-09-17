@@ -11,9 +11,11 @@ Projet d'école (binôme) : une bataille navale jouable dans le navigateur.
 
 Le socle attendu (contrainte du cours, diapos 5-6) est une **partie complète et jouable de bout en bout contre l'ordinateur** : création de partie → placement → tirs alternés → détection de fin → nouvelle partie. Ce n'est pas une somme de morceaux isolés : tant que ce parcours complet n'est pas démontrable dans le navigateur, le socle n'est pas atteint, même si chaque brique compile et a des tests verts séparément.
 
-État actuel (mis à jour 2026-09-16) : le socle (partie complète jouable de bout en bout) et les quatre extensions
-(options de partie, radar, Salvo, armes spéciales) sont implémentés et documentés. Aucun scaffold `dotnet new`
-résiduel (pages Weather/Counter, `Class1.cs`, `UnitTest1.cs` déjà supprimés).
+État actuel (mis à jour 2026-09-17) : le socle (partie complète jouable de bout en bout) est implémenté et
+documenté, ainsi que neuf extensions au-delà du socle : options de partie, radar, Salvo, armes spéciales,
+placement manuel de la flotte (ADR 0013), IA à difficulté réglable (ADR 0015), Salve en second flux gRPC-Web
+(ADR 0014), journal de partie (ADR 0016), et système de succès + profil joueur anonyme (ADR 0017/0018). Aucun
+scaffold `dotnet new` résiduel (pages Weather/Counter, `Class1.cs`, `UnitTest1.cs` déjà supprimés).
 
 ### État des lieux vérifié à la racine
 
