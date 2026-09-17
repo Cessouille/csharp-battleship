@@ -1,3 +1,4 @@
+using BattleShip.Models.Achievements;
 using BattleShip.Models.Ai;
 using BattleShip.Models.Contracts;
 
@@ -79,6 +80,7 @@ public sealed class Game
     private readonly IComputerTargeting _targeting;
     private readonly Random _rng;
     private readonly List<TurnResult> _history = [];
+    private readonly List<AchievementId> _achievements = [];
 
     public Game(
         Guid id,
@@ -94,6 +96,10 @@ public sealed class Game
         Options = options ?? GameOptions.Classic;
         _targeting = targeting ?? CreateTargeting(Options.Difficulty);
         _rng = rng ?? Random.Shared;
+
+        // Après l'affectation de tous les champs ci-dessus : un succès comme RangeeParfaite (placement) doit
+        // pouvoir se débloquer avant le moindre tir (docs/adr/0017-systeme-de-succes.md).
+        EvaluateAchievements();
     }
 
     /// <summary>
@@ -123,6 +129,14 @@ public sealed class Game
     /// n'atteint CompleteTurn).
     /// </summary>
     public IReadOnlyList<TurnResult> History => _history;
+
+    /// <summary>
+    /// Succès débloqués sur cette partie (TICKET-12, docs/adr/0017-systeme-de-succes.md). Alimentée au même
+    /// chokepoint que <see cref="History"/> (<see cref="CompleteTurn"/>) et au constructeur (pour un succès
+    /// évaluable dès le placement) ; jamais retirée. Un coup refusé n'y change jamais rien, structurellement :
+    /// aucun MoveResult.Rejected n'atteint CompleteTurn ni ne rappelle EvaluateAchievements.
+    /// </summary>
+    public IReadOnlyList<AchievementId> Achievements => _achievements;
 
     /// <summary>Le quota se déduit des scans déjà enregistrés sur le plateau adverse : pas de compteur séparé qui pourrait diverger.</summary>
     public int ScansRemaining => Options.Radar ? RadarRules.ScansPerGame - ComputerBoard.ScansReceived.Count : 0;
@@ -331,7 +345,26 @@ public sealed class Game
         }
 
         _history.Add(turn);
+        EvaluateAchievements();
         return new MoveResult.Accepted(turn);
+    }
+
+    /// <summary>
+    /// Évalue chaque règle de BattleShip.Models.Achievements.AchievementRules.All contre l'état courant de la
+    /// partie. Une règle déjà débloquée n'est jamais réévaluée : "ajout seul, jamais retiré" est ainsi garanti
+    /// par construction plutôt que par convention.
+    /// </summary>
+    private void EvaluateAchievements()
+    {
+        var context = AchievementContext.From(this);
+        foreach (var rule in AchievementRules.All)
+        {
+            if (_achievements.Contains(rule.Id))
+                continue;
+
+            if (rule.IsUnlocked(context))
+                _achievements.Add(rule.Id);
+        }
     }
 
     /// <summary>

@@ -7,7 +7,12 @@ public sealed class Board
     private readonly List<ScanResult> _scansReceived = [];
 
     public IReadOnlyList<Ship> Ships => _ships;
-    public IReadOnlyCollection<Coordinate> ShotsReceived => _shotsReceived;
+
+    /// <summary>
+    /// Typé en ensemble (pas seulement en collection) pour que les règles de succès (BattleShip.Models.Achievements)
+    /// puissent tester l'appartenance d'une case en O(1) plutôt qu'en énumérant toute la collection.
+    /// </summary>
+    public IReadOnlySet<Coordinate> ShotsReceived => _shotsReceived;
     public IReadOnlyList<ScanResult> ScansReceived => _scansReceived;
     public bool AllSunk => _ships.Count > 0 && _ships.All(s => s.IsSunk);
 
