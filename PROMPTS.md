@@ -125,3 +125,79 @@ partie créée avec exactement les positions choisies affichées sur "Votre plat
 **Vérification** : `dotnet build`/`dotnet test` **non exécutables dans cette session** (aucun SDK .NET 10 installé dans cet environnement, seulement 7.0.400 et 8.0.101 — contrainte d'environnement, pas un choix). Vérification faite par lecture croisée : chaque décision consignée dans les ADR et dans `docs/ticket.md` a été confrontée au fichier de règle correspondant (`ShotPatternRule`, `NoScratchRule`, `SparklingStreakRule`, etc.) avant d'être écrite, et le rapport `docs/audits/bugs-lint.md` du même commit (265/265 tests verts, `dotnet format --verify-no-changes` propre) sert de seule confirmation d'exécution disponible. Limite explicitement signalée à l'utilisateur et dans `REVUE-IA.md` : à revérifier par `dotnet build`/`dotnet test` dès qu'un SDK .NET 10 est disponible, en particulier pour les trois nouveaux fichiers de validation FluentValidation et le composant `Game.razor` modifiés dans cette session.
 
 **Preuve** : `README.md`, `CLAUDE.md`, `docs/adr/0017-systeme-de-succes.md`, `docs/adr/0018-profil-joueur-anonyme.md`, `docs/ticket.md`, `REVUE-IA.md` (nouvelle revue ci-dessus), `BattleShip.App/Pages/{Game,Achievements}.razor`, `BattleShip.API/Validation/{EnumValidationExtensions,CreateGameRequestDtoValidator,WeaponRequestValidators}.cs`.
+
+---
+
+## 2026-09-17 — Mini-jeu de précision (timing) : modèle de confiance et déclenchement
+
+**Outil / modèle** : Claude Code (Sonnet 5), en mode planification (`superpowers:brainstorming`) puis implémentation.
+**Contexte** : demande initiale de l'utilisateur — « il suffit de cliquer sur une case pour lancer un tir […] je
+souhaite pouvoir rendre la mécanique plus difficile via les Options de la partie », avec une mécanique décrite en
+détail façon combat Undertale (barre horizontale, zone rose au centre, curseur, arrêt au clic/espace), à proposer
+« pour l'attaque et la défense ». Deux points structurants restaient implicites dans la demande : comment le
+serveur peut rester seul juge d'un mini-jeu par nature calculé en continu côté client, et ce que « défense »
+signifie dans un jeu où, normalement, subir un tir ne dépend que de la position des navires.
+
+**Prompt** : demande initiale, puis questions posées explicitement à l'utilisateur (`AskUserQuestion`, cinq
+échanges) plutôt que tranchées seules — effet de la défense sur l'issue d'un tir, modèle de confiance sur le
+résultat (client déclaré / graine déterministe / horodatage serveur vérifié), fréquence de déclenchement de la
+défense, portée par type d'arme, granularité de l'option, ampleur du chantier (tout d'un bloc ou étapes).
+
+**Réponse résumée** : trois approches présentées pour le modèle de confiance, avec recommandation motivée par la
+règle non négociable « le client n'est pas source de vérité » (`CLAUDE.md`) — vérification serveur par
+horodatage, plus coûteuse à construire (elle exige de rendre la résolution d'un tour interruptible) mais seule
+option qui ne fait confiance à aucune donnée fournie par le client pour décider du résultat. Pour la défense,
+proposition que la mécanique ne s'applique qu'au coup qui couperait effectivement un navire (pas à chaque tir
+adverse), pour rester rare et dramatique plutôt que d'alourdir chaque tour.
+
+**Décision** : les cinq recommandations proposées ont toutes été retenues par l'utilisateur — vérification serveur
+par horodatage ; défense déclenchée uniquement sur le coup fatal ; attaque déclenchée sur toute case contenant un
+navire, sur toutes les actions offensives (tir, salve, torpille, frappe) ; un seul interrupteur pour les deux
+mécaniques ; périmètre complet en un seul chantier plutôt que découpé en jalons. Détail des options envisagées et
+de l'arbitrage dans `docs/adr/0019-mini-jeu-de-precision.md`.
+
+**Vérification** : développement en TDD strict (test écrit et vu échouer avant chaque implémentation) sur
+`TimingEvaluator`, `Ship.WouldSink`, `Board.{ReceiveShotForcedMiss,ReceiveShotDodged,WouldSink}`,
+`VolleySequencer` et `Game` (horloge injectée pour contrôler le temps écoulé sans dépendre d'un vrai minuteur) ;
+308 tests xUnit verts au final, aucune régression sur la suite existante (option désactivée par défaut, chemin
+inchangé pour tout appelant qui ne l'active pas). Scénario navigateur exécuté de bout en bout — voir la revue
+dédiée dans `REVUE-IA.md`, qui a mis au jour et corrigé un défaut réel non détecté par la suite de tests
+(un état de défi affiché pouvait rester figé côté client après sa résolution).
+
+**Preuve** : `docs/adr/0019-mini-jeu-de-precision.md`, `BattleShip.Tests/Engine/{TimingEvaluator,VolleySequencer,PrecisionMinigame}Tests.cs`, `BattleShip.Tests/Api/{PrecisionMinigameEndpoints,GrpcSalvo}Tests.cs`, `REVUE-IA.md` (revue ci-dessus).
+
+---
+
+## 2026-09-18 — Gestion centralisée des versions de packages (`Directory.Packages.props`)
+
+**Outil / modèle** : Claude Code (Sonnet 5).
+**Contexte** : demande de classification de toutes les dépendances du projet (interne/externe, directe/transitive,
+explicite/implicite, niveau de couplage). L'exercice de classification a nécessité de vérifier le graphe réel
+plutôt que de le déduire des `.csproj` (`dotnet list package --include-transitive`), ce qui a révélé un écart non
+documenté : `Google.Protobuf` résolu en `3.31.1` côté `BattleShip.API` (transitif via `Grpc.AspNetCore`, absent de
+tout `.csproj`) contre `3.36.1` côté `BattleShip.App` (direct) — la bibliothèque qui sérialise chaque message de
+l'unique canal gRPC-Web du projet, sur deux versions différentes sans qu'aucun ADR ni commit ne l'ait décidé.
+
+**Prompt** : « Classez les dépendances: interne ou externe, directe ou transitive, explicite ou implicite. Notez
+leur couplage avec mon code : faible, moyen, fort. Entoure celle qui inquiert le plus et dit pourquoi. » puis
+« procéder à l'ajout du Directory.Packages.props ».
+
+**Réponse résumée** : l'écart `Google.Protobuf` désigné comme risque principal plutôt que l'écart `Grpc.Tools`
+(2.83.0 transitif vs 2.84.0 direct, également réel mais build-time only, sans impact runtime) — argument : invisible
+en lisant les `.csproj`, situé exactement sur le chemin le plus surveillé du cahier des charges (l'échange
+gRPC-Web démontrable au navigateur), et non issu d'une décision documentée. Correctif proposé et exécuté :
+`Directory.Packages.props` à la racine (`ManagePackageVersionsCentrally`), une version unique par package pour
+toute la solution, et les deux dépendances jusque-là transitives dans l'API (`Google.Protobuf`, `Grpc.Tools`)
+rendues explicites (`<PackageReference>` sans version, résolue par le fichier central) pour qu'elles apparaissent
+enfin dans le `.csproj` au lieu de dépendre silencieusement de ce que `Grpc.AspNetCore` tire en transitif.
+
+**Décision** : proposition acceptée telle quelle — `Google.Protobuf` et `Grpc.Tools` consolidés sur la version la
+plus récente déjà utilisée côté `App` (`3.36.1` / `2.84.0`), tous les autres packages sur leur version déjà en
+place (aucun autre changement fonctionnel).
+
+**Vérification** : `dotnet restore` propre ; `dotnet list package --include-transitive` relancé après coup sur
+`BattleShip.API` et `BattleShip.App` — les deux résolvent désormais `Google.Protobuf 3.36.1` et `Grpc.Tools
+2.84.0` à l'identique (avant/après comparé, pas seulement supposé corrigé) ; `dotnet build BattleShip.slnx` (0
+avertissement, 0 erreur) ; `dotnet test BattleShip.Tests` (309/309 verts, aucune régression).
+
+**Preuve** : `Directory.Packages.props`, `BattleShip.{API,App,Tests}/*.csproj`.
