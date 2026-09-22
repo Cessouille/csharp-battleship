@@ -1,20 +1,9 @@
 # Revues de propositions IA
 
-Trois revues argumentées minimum. Aucune erreur n'est exigée ; chaque conclusion doit être étayée.
-
-Les cinq revues retenues ci-dessous ont été sélectionnées parmi un ensemble plus large pour couvrir des
-méthodes de vérification distinctes — test de mutation manuelle, benchmark quantitatif, scénario HTTP direct
-(`curl`) et vérification manuelle bout en bout au navigateur — et des issues différentes : proposition acceptée
-telle quelle, acceptée mais complétée, rejetée et corrigée, et décision antérieure renversée après un défaut
-signalé en jouant. Chacune répond à la même question : la vérification effectuée démontre-t-elle réellement ce
-qu'elle prétend démontrer, ou se contente-t-elle d'un test qui « passerait de toute façon » ?
-
----
-
 ## Revue : le correctif de concurrence sur `Game` empêche-t-il vraiment le scénario décrit par l'audit ?
 
 **Proposition examinée**
-Constat de l'audit `audit-bugs-lint` (rapport du 2026-09-15, commit `cc9908a`) : `InMemoryGameStore` expose un
+Constat de l'audit `audit-bugs-lint` (rapport du 15/09/2026, commit `cc9908a`) : `InMemoryGameStore` expose un
 `Game` mutable sans verrou (`BattleShip.Models/Domain/Game.cs`), si bien que deux requêtes concurrentes sur le
 même `gameId` pourraient toutes deux passer `ComputerBoard.IsValidTarget(target)` avant que l'une des deux
 n'appelle `ReceiveShot`, produisant un coup compté deux fois. Correctif proposé (par l'audit) : verrouiller

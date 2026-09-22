@@ -1,8 +1,8 @@
 # Échanges décisifs avec l'IA
 
-## 2026-09-15 — Conception du moteur et de la frontière anti-fuite
+## 15/09/2026 — Conception du moteur et de la frontière anti-fuite
 
-**modèle** : Claude Code (Sonnet 5), mode planification.
+**Modèle** : Claude Code (Sonnet 5), mode planification.
 **Contexte** : la règle non négociable « les positions adverses non découvertes restent cachées dans toute
 réponse API » (`CLAUDE.md`) est facile à énoncer et facile à violer par inadvertance (un DTO partagé avec un
 champ optionnel oublié, par exemple).
@@ -35,9 +35,9 @@ fonctionnalité qui touche à l'information cachée.
 
 ---
 
-## 2026-09-15 — Réalignement du backlog d'extensions
+## 15/09/2026 — Réalignement du backlog d'extensions
 
-**modèle** : Claude Code (Opus 5), mode planification.
+**Modèle** : Claude Code (Opus 5), mode planification.
 **Contexte** : `docs/ticket.md` avait été rédigé à partir d'une recherche web sur les variantes de bataille
 navale, sans confrontation systématique au code. Avant d'en implémenter un seul, il fallait vérifier que ses
 hypothèses techniques tenaient et faire trancher les règles de jeu restées implicites.
@@ -71,9 +71,9 @@ chaque ticket, puis par les revues dédiées de `REVUE-IA.md` une fois le code l
 
 ---
 
-## 2026-09-16 — Placement manuel de la flotte : architecture et interaction
+## 16/09/2026 — Placement manuel de la flotte : architecture et interaction
 
-**modèle** : Claude Code (Sonnet 5), mode planification.
+**Modèle** : Claude Code (Sonnet 5), mode planification.
 **Contexte** : le placement de la flotte humaine était toujours aléatoire ; `README.md` listait explicitement
 « personnalisation du placement de la flotte par le joueur » comme piste écartée. L'utilisateur a demandé de
 revenir dessus : offrir le choix entre placement aléatoire et placement à la main.
@@ -108,9 +108,9 @@ partie créée avec exactement les positions choisies affichées sur « Votre pl
 
 ---
 
-## 2026-09-17 — Mini-jeu de précision (timing) : modèle de confiance et déclenchement
+## 17/09/2026 — Mini-jeu de précision (timing) : modèle de confiance et déclenchement
 
-**modèle** : Claude Code (Sonnet 5), en mode planification
+**Modèle** : Claude Code (Sonnet 5), en mode planification
 **Contexte** : demande initiale de l'utilisateur — « il suffit de cliquer sur une case pour lancer un tir […] je
 souhaite pouvoir rendre la mécanique plus difficile via les Options de la partie », avec une mécanique décrite en
 détail façon combat Undertale (barre horizontale, zone rose au centre, curseur, arrêt au clic/espace), à proposer
@@ -151,9 +151,9 @@ insinkable).
 
 ---
 
-## 2026-09-18 — Gestion centralisée des versions de packages (`Directory.Packages.props`)
+## 18/09/2026 — Gestion centralisée des versions de packages (`Directory.Packages.props`)
 
-**modèle** : Claude Code (Sonnet 5), mode planification.
+**Modèle** : Claude Code (Sonnet 5), mode planification.
 **Contexte** : demande de classification de toutes les dépendances du projet (interne/externe, directe/transitive,
 explicite/implicite, niveau de couplage). L'exercice de classification a nécessité de vérifier le graphe réel
 plutôt que de le déduire des `.csproj` (`dotnet list package --include-transitive`), ce qui a révélé un écart non
