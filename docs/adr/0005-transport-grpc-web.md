@@ -2,7 +2,7 @@
 
 ## Statut et date
 
-Accepté — 2026-09-15. Réexaminé le même jour : un flux mutant (`ScanZone`) est ajouté par `docs/adr/0010-radar-grpc-web.md`.
+Accepté — 15/09/2026. Réexaminé le même jour : un flux mutant (`ScanZone`) est ajouté par `docs/adr/0010-radar-grpc-web.md`.
 
 ## Contexte
 

@@ -2,7 +2,7 @@
 
 ## Statut et date
 
-Accepté — 2026-09-15.
+Accepté — 15/09/2026.
 
 ## Contexte
 

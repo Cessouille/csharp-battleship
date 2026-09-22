@@ -1,7 +1,7 @@
 # Crédits des illustrations de succès
 
 11 illustrations CC0 1.0 (domaine public), toutes vectorielles (SVG, fond transparent), téléchargées depuis
-Wikimedia Commons via l'API [Openverse](https://openverse.org/) le 2026-09-17. Voir `docs/adr/0017-systeme-de-succes.md`.
+Wikimedia Commons via l'API [Openverse](https://openverse.org/) le 17/09/2026. Voir `docs/adr/0017-systeme-de-succes.md`.
 
 Chaque fichier est utilisé côté App comme masque CSS (`mask-image`) : la forme est recolorée en `--dore`
 (débloqué) ou `--lilas` (verrouillé) sans dépendre de la couleur d'origine du fichier.

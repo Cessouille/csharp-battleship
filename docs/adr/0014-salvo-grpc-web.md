@@ -2,7 +2,7 @@
 
 ## Statut et date
 
-Accepté — 2026-09-16. Complète `docs/adr/0005-transport-grpc-web.md` et `docs/adr/0010-radar-grpc-web.md`.
+Accepté — 16/09/2026. Complète `docs/adr/0005-transport-grpc-web.md` et `docs/adr/0010-radar-grpc-web.md`.
 
 ## Contexte
 

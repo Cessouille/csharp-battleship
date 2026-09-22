@@ -2,13 +2,13 @@
 
 ## Statut et date
 
-Accepté — 2026-09-17. Rédigé a posteriori pour réconcilier le dépôt avec le code déjà livré par le commit
+Accepté — 17/09/2026. Rédigé a posteriori pour réconcilier le dépôt avec le code déjà livré par le commit
 `4864370` (« feat: ajout des succès ») : le code référence cet ADR depuis sa livraison, mais le fichier
-n'existait pas encore — écart relevé par l'audit `docs/audits/documentation.md` du 2026-09-17.
+n'existait pas encore — écart relevé par l'audit `docs/audits/documentation.md` du 17/09/2026.
 
 ## Contexte
 
-Troisième vague de propositions (`docs/ticket.md`, 2026-09-17) : TICKET-12 (socle technique commun) et
+Troisième vague de propositions (`docs/ticket.md`, 17/09/2026) : TICKET-12 (socle technique commun) et
 TICKET-13 (catalogue des 11 succès intra-partie). Catalogue composé de 6 idées du binôme et de 5 propositions
 IA pensées pour le thème visuel de l'App (palette `--rose-vif`/`--lilas`/`--dore`/`--creme`, polices
 Fredoka/Quicksand) — origine de chaque idée tracée dans `docs/ticket.md`.
@@ -85,7 +85,7 @@ ajouté, jamais renuméroté) — `ScanZoneReply`/`PlaySalvoReply` en héritent 
 - Nouveau dossier `BattleShip.Models/Achievements/` : ajouter un succès = ajouter une classe à
   `AchievementRules.All`, jamais modifier les règles existantes.
 - README (fonctionnalités livrées + limites connues) et `docs/ticket.md` (statut des tickets) mis à jour à la
-  livraison de cet ADR, avec un léger retard documenté par l'audit du 2026-09-17.
+  livraison de cet ADR, avec un léger retard documenté par l'audit du 17/09/2026.
 
 ## Vérification et réexamen
 
@@ -96,7 +96,7 @@ positif **et** en négatif) ; `Contracts/AchievementLeakTests.cs` —
 identique mais flottes adverses cachées différentes débloquent exactement les mêmes succès, test comportemental
 en plus du test structurel par réflexion sur `AchievementContext` ; `Api/AchievementsContractTests.cs`
 (round-trip REST et gRPC de la liste de succès). Suite complète : 265/265 tests verts, `dotnet format
---verify-no-changes` propre (audit `docs/audits/bugs-lint.md`, 2026-09-17).
+--verify-no-changes` propre (audit `docs/audits/bugs-lint.md`, 17/09/2026).
 
 ## Références
 

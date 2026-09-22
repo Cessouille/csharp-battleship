@@ -2,7 +2,7 @@
 
 ## Statut et date
 
-Accepté — 2026-09-16. Complète l'ADR 0002 (algorithme de placement aléatoire), ne le remplace pas : les deux
+Accepté — 16/09/2026. Complète l'ADR 0002 (algorithme de placement aléatoire), ne le remplace pas : les deux
 mécanismes coexistent, choisis par le joueur à la création de la partie.
 
 ## Contexte

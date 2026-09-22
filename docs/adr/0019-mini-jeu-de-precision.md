@@ -2,7 +2,7 @@
 
 ## Statut et date
 
-Accepté — 2026-09-17.
+Accepté — 17/09/2026.
 
 ## Contexte
 
@@ -63,7 +63,7 @@ côté case (voir correction ci-dessous) : `ReceiveShotForcedMiss` (attaque rat�
 le navire et ne marque jamais la case comme jouée ; elle reste une cible valide plus tard, pour un tir qui pourra
 cette fois réussir.
 
-**Correction (2026-09-17)** : la version livrée initialement faisait consommer la case par
+**Correction (17/09/2026)** : la version livrée initialement faisait consommer la case par
 `ReceiveShotForcedMiss` (« comme un vrai raté »), en cohérence apparente avec un vrai raté sur une case vide.
 Mais `Ship.IsSunk` exige un coup enregistré sur *toutes* les cases du navire ; une case consommée sans jamais
 enregistrer de coup rend donc ce navire définitivement impossible à couler dès qu'un seul raté forcé le touche —

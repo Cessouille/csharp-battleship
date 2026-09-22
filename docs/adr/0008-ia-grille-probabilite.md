@@ -2,7 +2,7 @@
 
 ## Statut et date
 
-Accepté — 2026-09-15. Remplace `docs/adr/0004-strategie-adversaire.md`.
+Accepté — 15/09/2026. Remplace `docs/adr/0004-strategie-adversaire.md`.
 
 ## Contexte
 

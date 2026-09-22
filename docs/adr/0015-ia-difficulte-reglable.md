@@ -2,7 +2,7 @@
 
 ## Statut et date
 
-Accepté — 2026-09-16. Succède à `docs/adr/0008-ia-grille-probabilite.md` (ne le remplace pas : la grille de
+Accepté — 16/09/2026. Succède à `docs/adr/0008-ia-grille-probabilite.md` (ne le remplace pas : la grille de
 probabilité reste le palier « Difficile »).
 
 ## Contexte

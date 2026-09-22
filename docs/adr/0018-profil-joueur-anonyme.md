@@ -2,9 +2,9 @@
 
 ## Statut et date
 
-Accepté — 2026-09-17. Rédigé a posteriori pour réconcilier le dépôt avec le code déjà livré par le commit
+Accepté — 17/09/2026. Rédigé a posteriori pour réconcilier le dépôt avec le code déjà livré par le commit
 `4864370` (« feat: ajout des succès ») : le code référence cet ADR depuis sa livraison, mais le fichier
-n'existait pas encore — écart relevé par l'audit `docs/audits/documentation.md` du 2026-09-17. Complète l'ADR
+n'existait pas encore — écart relevé par l'audit `docs/audits/documentation.md` du 17/09/2026. Complète l'ADR
 0017 (système de succès) pour le seul succès inter-parties du catalogue : S-03 Reine du difficile.
 
 ## Contexte
@@ -81,7 +81,7 @@ Ce ticket **revient sur cet arbitrage**, assumé et documenté comme tel plutôt
 `GetPlayer_MalformedGuidInRoute_Returns404`, `CreateGame_WithMalformedPlayerId_Returns400`,
 `CreateGame_WithUnknownPlayerId_StillSucceeds`, `CreateGame_WithTwoRowFleetAndPlayerId_ShowsRangeeParfaiteInTheProfile`,
 `TwoPlayers_EachSeeOnlyTheirOwnGames`). Suite complète : 265/265 tests verts (audit `docs/audits/bugs-lint.md`,
-2026-09-17).
+17/09/2026).
 
 ## Références
 
