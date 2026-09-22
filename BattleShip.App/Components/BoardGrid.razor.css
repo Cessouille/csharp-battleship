@@ -1,8 +1,17 @@
 .board-grid {
     display: grid;
-    grid-template-columns: repeat(var(--board-size), 2rem);
-    grid-template-rows: repeat(var(--board-size), 2rem);
+    grid-template-columns: 1.5rem repeat(var(--board-size), 2rem);
+    grid-template-rows: 1.5rem repeat(var(--board-size), 2rem);
     gap: 3px;
+}
+
+.board-header-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--encre-prune, #4A1942);
 }
 
 .board-cell {

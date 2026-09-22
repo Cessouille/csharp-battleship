@@ -2,9 +2,15 @@
 @using BattleShip.App.Game
 
 <div class="board-grid" style="--board-size:@Size">
+    <div class="board-header-cell"></div>
+    @for (var column = 0; column < Size; column++)
+    {
+        <div class="board-header-cell">@CellCode.ColumnLabel(column)</div>
+    }
     @for (var row = 0; row < Size; row++)
     {
         var r = row;
+        <div class="board-header-cell">@(row + 1)</div>
         for (var column = 0; column < Size; column++)
         {
             var c = column;
@@ -14,7 +20,7 @@
             <button type="button"
                     class="board-cell cell-@state.ToString().ToLowerInvariant() @(interactive ? "interactive" : "") @(selected ? "selected" : "")"
                     disabled="@(!interactive)"
-                    aria-label="Case ligne @r colonne @c"
+                    aria-label="Case @CellCode.Format(r, c)"
                     aria-pressed="@(selected ? "true" : null)"
                     @onclick="() => OnCellClick.InvokeAsync((r, c))">
             </button>

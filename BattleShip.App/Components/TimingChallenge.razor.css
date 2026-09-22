@@ -1,0 +1,72 @@
+.timing-challenge {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    background-color: var(--creme, #FFF6FB);
+    border: 2px solid var(--lilas, #E9C6FF);
+    border-radius: 0.6rem;
+    outline: none;
+}
+
+    .timing-challenge:focus-visible {
+        border-color: var(--rose-vif, #FF3E9D);
+        box-shadow: 0 0 0 0.2rem var(--lilas, #E9C6FF);
+    }
+
+.timing-challenge-title {
+    margin: 0;
+    font-weight: 700;
+    color: var(--encre-prune, #4A1942);
+}
+
+.timing-challenge-hint {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--rose-fonce, #B0177A);
+}
+
+.timing-bar {
+    width: min(100%, 26rem);
+    height: auto;
+    cursor: pointer;
+}
+
+.timing-edge-stop {
+    stop-color: #FF6B3D;
+}
+
+.timing-zone-stop {
+    stop-color: var(--rose-vif, #FF3E9D);
+}
+
+.timing-cursor {
+    fill: var(--encre-prune, #4A1942);
+    stroke: var(--creme, #FFF6FB);
+    stroke-width: 1;
+    animation-name: timing-sweep;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+}
+
+@keyframes timing-sweep {
+    0% {
+        transform: translateX(0px);
+    }
+
+    50% {
+        transform: translateX(392px);
+    }
+
+    100% {
+        transform: translateX(0px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .timing-cursor {
+        animation-duration: 6s !important;
+    }
+}

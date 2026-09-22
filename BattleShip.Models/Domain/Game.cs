@@ -44,7 +44,13 @@ public enum MoveRejectionReason
     WrongSalvoSize,
     DuplicateTarget,
     WeaponsDisabled,
-    NoAmmoLeft
+    NoAmmoLeft,
+
+    /// <summary>Voir docs/adr/0019-mini-jeu-de-precision.md : le défi résolu n'existe pas, est déjà résolu, ou son id ne correspond pas à celui en attente.</summary>
+    NoChallengePending,
+
+    /// <summary>Un mini-jeu de précision est déjà ouvert : aucune nouvelle action tant qu'il n'est pas résolu.</summary>
+    ChallengeInProgress
 }
 
 public abstract record MoveResult
@@ -54,6 +60,9 @@ public abstract record MoveResult
     }
 
     public sealed record Accepted(TurnResult Turn) : MoveResult;
+
+    /// <summary>Voir docs/adr/0019-mini-jeu-de-precision.md : le tour est suspendu en attendant que le joueur résolve ce défi de timing.</summary>
+    public sealed record AwaitingChallenge(PendingChallenge Challenge) : MoveResult;
 
     public sealed record Rejected(MoveRejectionReason Reason) : MoveResult;
 }
@@ -79,8 +88,15 @@ public sealed class Game
 
     private readonly IComputerTargeting _targeting;
     private readonly Random _rng;
+    private readonly Func<DateTimeOffset> _clock;
     private readonly List<TurnResult> _history = [];
     private readonly List<AchievementId> _achievements = [];
+
+    /// <summary>Défi de timing actuellement affiché au joueur, ou <c>null</c> si aucun n'est en attente (voir docs/adr/0019-mini-jeu-de-precision.md).</summary>
+    private PendingChallenge? _pendingChallenge;
+
+    /// <summary>État de tour suspendu tant qu'un défi de timing (attaque ou défense) n'est pas résolu ; <c>null</c> hors mini-jeu.</summary>
+    private PendingTurn? _pendingTurn;
 
     public Game(
         Guid id,
@@ -88,7 +104,8 @@ public sealed class Game
         Board computerBoard,
         GameOptions? options = null,
         IComputerTargeting? targeting = null,
-        Random? rng = null)
+        Random? rng = null,
+        Func<DateTimeOffset>? clock = null)
     {
         Id = id;
         HumanBoard = humanBoard;
@@ -96,10 +113,27 @@ public sealed class Game
         Options = options ?? GameOptions.Classic;
         _targeting = targeting ?? CreateTargeting(Options.Difficulty);
         _rng = rng ?? Random.Shared;
+        _clock = clock ?? (() => DateTimeOffset.UtcNow);
 
         // Après l'affectation de tous les champs ci-dessus : un succès comme RangeeParfaite (placement) doit
         // pouvoir se débloquer avant le moindre tir (docs/adr/0017-systeme-de-succes.md).
         EvaluateAchievements();
+    }
+
+    /// <summary>
+    /// État de tour suspendu le temps qu'un ou plusieurs défis de timing se résolvent (attaque, puis défense).
+    /// Toujours <c>null</c> hors mini-jeu de précision, ou entre deux tours. <see cref="AttackSequencer"/> et
+    /// <see cref="DefenseSequencer"/> ne sont jamais tous deux non-null : l'attaque se termine intégralement
+    /// avant que la défense ne commence.
+    /// </summary>
+    private sealed class PendingTurn
+    {
+        public VolleySequencer? AttackSequencer { get; init; }
+        public IReadOnlyList<ShotResolution>? PlayerShots { get; set; }
+        public ScanResult? PlayerScan { get; init; }
+        public WeaponKind? PlayerWeapon { get; init; }
+        public VolleySequencer? DefenseSequencer { get; set; }
+        public WeaponKind? ComputerWeapon { get; set; }
     }
 
     /// <summary>
@@ -122,17 +156,20 @@ public sealed class Game
     public PlayerId? Winner { get; private set; }
     public GameStatus Status => Winner is null ? GameStatus.InProgress : GameStatus.Finished;
 
+    /// <summary>Défi de timing actuellement affiché au joueur, ou <c>null</c> hors mini-jeu (voir docs/adr/0019-mini-jeu-de-precision.md). Exposé pour qu'un rechargement de page puisse le réafficher.</summary>
+    public PendingChallenge? PendingChallenge => _pendingChallenge;
+
     /// <summary>
     /// Journal chronologique des tours joués (TICKET-10, voir docs/adr/0016-journal-de-partie.md), pour survivre
     /// au rechargement de la page (renvoyé par GetGameState). Alimenté au même chokepoint que la résolution d'un
-    /// tour (<see cref="CompleteTurn"/>), jamais retiré : un coup refusé n'y apparaît jamais (aucun MoveResult.Rejected
-    /// n'atteint CompleteTurn).
+    /// tour (<see cref="FinalizeTurn"/>), jamais retiré : un coup refusé n'y apparaît jamais (aucun MoveResult.Rejected
+    /// n'atteint FinalizeTurn).
     /// </summary>
     public IReadOnlyList<TurnResult> History => _history;
 
     /// <summary>
     /// Succès débloqués sur cette partie (TICKET-12, docs/adr/0017-systeme-de-succes.md). Alimentée au même
-    /// chokepoint que <see cref="History"/> (<see cref="CompleteTurn"/>) et au constructeur (pour un succès
+    /// chokepoint que <see cref="History"/> (<see cref="FinalizeTurn"/>) et au constructeur (pour un succès
     /// évaluable dès le placement) ; jamais retirée. Un coup refusé n'y change jamais rien, structurellement :
     /// aucun MoveResult.Rejected n'atteint CompleteTurn ni ne rappelle EvaluateAchievements.
     /// </summary>
@@ -223,7 +260,7 @@ public sealed class Game
         return PlayHumanVolley(targets, HumanSalvoSize);
     });
 
-    /// <summary>Le scan remplace le tir du tour : l'ordinateur riposte ensuite comme après un tir.</summary>
+    /// <summary>Le scan remplace le tir du tour : l'ordinateur riposte ensuite comme après un tir. Jamais gaté par un défi (pas de navire ciblé).</summary>
     public MoveResult PlayHumanScan(Coordinate origin) => Guarded(() =>
     {
         if (!Options.Radar)
@@ -236,7 +273,7 @@ public sealed class Game
             return new MoveResult.Rejected(MoveRejectionReason.NoScansLeft);
 
         var scan = ComputerBoard.ReceiveScan(origin);
-        return CompleteTurn([], scan, null);
+        return FinishAttackPhase([], scan, null);
     });
 
     /// <summary>Une arme remplace tout le tour du joueur, salve comprise ; l'ordinateur riposte ensuite.</summary>
@@ -246,14 +283,16 @@ public sealed class Game
             return new MoveResult.Rejected(reason);
 
         HumanArsenal.Consume(action.Kind);
-        return CompleteTurn(ComputerBoard.ReceiveWeapon(action), null, action.Kind);
+        var cells = WeaponRules.Cells(action)!; // non-null garanti : ValidateWeapon l'a déjà vérifié
+        var sequencer = new VolleySequencer(ComputerBoard, cells, stopOnFirstHit: action is WeaponAction.Torpedo, NeedsAttackChallenge);
+        return BeginAttack(sequencer, playerScan: null, action.Kind);
     });
 
     /// <summary>
     /// Squelette commun à tout point d'entrée de coup du joueur : verrouille la partie, refuse tout coup une fois
-    /// la partie terminée, puis délègue à <paramref name="body"/> pour la validation/résolution spécifique à
-    /// l'action. Centralise le verrou + le contrôle de fin de partie pour qu'une future action de tour n'ait pas
-    /// à les recopier.
+    /// la partie terminée ou tant qu'un défi de timing est ouvert, puis délègue à <paramref name="body"/> pour la
+    /// validation/résolution spécifique à l'action. Centralise le verrou + les contrôles communs pour qu'une
+    /// future action de tour n'ait pas à les recopier.
     /// </summary>
     private MoveResult Guarded(Func<MoveResult> body)
     {
@@ -261,6 +300,9 @@ public sealed class Game
         {
             if (Status == GameStatus.Finished)
                 return new MoveResult.Rejected(MoveRejectionReason.GameAlreadyFinished);
+
+            if (_pendingChallenge is not null)
+                return new MoveResult.Rejected(MoveRejectionReason.ChallengeInProgress);
 
             return body();
         }
@@ -271,8 +313,15 @@ public sealed class Game
         if (ValidateVolley(ComputerBoard, targets, expectedCount) is { } reason)
             return new MoveResult.Rejected(reason);
 
-        return CompleteTurn(ResolveVolley(ComputerBoard, targets), null, null);
+        var sequencer = new VolleySequencer(ComputerBoard, targets, stopOnFirstHit: false, NeedsAttackChallenge);
+        return BeginAttack(sequencer, playerScan: null, playerWeapon: null);
     }
+
+    /// <summary>Voir docs/adr/0019-mini-jeu-de-precision.md : une case déclenche un défi d'attaque seulement si elle porte un navire adverse.</summary>
+    private bool NeedsAttackChallenge(Coordinate cell) => Options.PrecisionMinigame && ComputerBoard.IsOccupied(cell);
+
+    /// <summary>Voir docs/adr/0019-mini-jeu-de-precision.md : côté défense, seul le coup qui couperait un navire déclenche un défi.</summary>
+    private bool NeedsDefenseChallenge(Coordinate cell) => Options.PrecisionMinigame && HumanBoard.WouldSink(cell);
 
     /// <summary>
     /// Règles de validité d'un lot de tirs, communes au joueur et à l'ordinateur (classique = lot d'un seul tir).
@@ -313,38 +362,117 @@ public sealed class Game
         return null;
     }
 
-    private static List<ShotResolution> ResolveVolley(Board target, IReadOnlyList<Coordinate> targets)
+    /// <summary>
+    /// Fait avancer le lot d'attaque du joueur : soit il se termine d'un bloc (comportement historique, cas
+    /// majoritaire quand l'option est désactivée), soit il s'arrête sur un défi et le tour reste en suspens.
+    /// </summary>
+    private MoveResult BeginAttack(VolleySequencer sequencer, ScanResult? playerScan, WeaponKind? playerWeapon)
     {
-        var resolutions = new List<ShotResolution>(targets.Count);
-        foreach (var coordinate in targets)
+        var next = sequencer.Advance();
+        if (next is { } cell)
         {
-            resolutions.Add(target.ReceiveShot(coordinate));
-            if (target.AllSunk)
-                break;
+            _pendingTurn = new PendingTurn { AttackSequencer = sequencer, PlayerScan = playerScan, PlayerWeapon = playerWeapon };
+            return OpenChallenge(ChallengeKind.Attack, cell);
         }
 
-        return resolutions;
+        return FinishAttackPhase(sequencer.Resolutions, playerScan, playerWeapon);
     }
 
-    /// <summary>Fin commune à toute action du joueur déjà appliquée : victoire immédiate, sinon riposte de l'ordinateur.</summary>
-    private MoveResult CompleteTurn(IReadOnlyList<ShotResolution> playerShots, ScanResult? playerScan, WeaponKind? playerWeapon)
+    private MoveResult OpenChallenge(ChallengeKind kind, Coordinate cell)
     {
-        TurnResult turn;
+        _pendingChallenge = new PendingChallenge(Guid.NewGuid(), kind, cell, _clock());
+        return new MoveResult.AwaitingChallenge(_pendingChallenge);
+    }
+
+    /// <summary>
+    /// Le lot d'attaque du joueur est entièrement résolu (avec ou sans défi entre-temps) : victoire immédiate si
+    /// la flotte adverse est coulée, sinon on prépare la riposte de l'ordinateur (elle-même potentiellement
+    /// suspendue par un défi de défense).
+    /// </summary>
+    private MoveResult FinishAttackPhase(IReadOnlyList<ShotResolution> playerShots, ScanResult? playerScan, WeaponKind? playerWeapon)
+    {
         if (ComputerBoard.AllSunk)
         {
             Winner = PlayerId.Human;
-            turn = new TurnResult(playerShots, playerScan, playerWeapon, [], null, Winner, Status);
+            return FinalizeTurn(playerShots, playerScan, playerWeapon, [], null);
         }
-        else
+
+        var (targets, computerWeapon, stopOnFirstHit) = ChooseComputerMove();
+        var sequencer = new VolleySequencer(HumanBoard, targets, stopOnFirstHit, NeedsDefenseChallenge);
+        return AdvanceDefense(sequencer, playerShots, playerScan, playerWeapon, computerWeapon);
+    }
+
+    private MoveResult AdvanceDefense(
+        VolleySequencer sequencer, IReadOnlyList<ShotResolution> playerShots, ScanResult? playerScan, WeaponKind? playerWeapon, WeaponKind? computerWeapon)
+    {
+        var next = sequencer.Advance();
+        if (next is { } cell)
         {
-            var (computerShots, computerWeapon) = PlayComputerTurn();
-            if (HumanBoard.AllSunk)
-                Winner = PlayerId.Computer;
-
-            turn = new TurnResult(playerShots, playerScan, playerWeapon, computerShots, computerWeapon, Winner, Status);
+            _pendingTurn = new PendingTurn
+            {
+                PlayerShots = playerShots,
+                PlayerScan = playerScan,
+                PlayerWeapon = playerWeapon,
+                DefenseSequencer = sequencer,
+                ComputerWeapon = computerWeapon
+            };
+            return OpenChallenge(ChallengeKind.Defense, cell);
         }
 
+        return FinalizeTurn(playerShots, playerScan, playerWeapon, sequencer.Resolutions, computerWeapon);
+    }
+
+    /// <summary>
+    /// Résout le défi de timing actuellement affiché au joueur à partir du seul temps écoulé côté serveur (voir
+    /// docs/adr/0019-mini-jeu-de-precision.md) : le client n'est jamais consulté sur le résultat, seulement sur
+    /// l'instant où il a signalé l'arrêt. Reprend ensuite le lot (attaque ou défense) suspendu.
+    /// </summary>
+    public MoveResult ResolveChallenge(Guid challengeId)
+    {
+        lock (_gate)
+        {
+            if (_pendingChallenge is not { } challenge || challenge.Id != challengeId)
+                return new MoveResult.Rejected(MoveRejectionReason.NoChallengePending);
+
+            var elapsed = _clock() - challenge.StartedAtUtc;
+            var success = TimingEvaluator.Succeeds(TimingRules.ZoneStart, TimingRules.ZoneWidth, TimingRules.PeriodMs, elapsed);
+            _pendingChallenge = null;
+            var pending = _pendingTurn!;
+
+            if (challenge.Kind == ChallengeKind.Attack)
+            {
+                var attackSequencer = pending.AttackSequencer!;
+                // Réussite = tir appliqué normalement ; échec = raté forcé, la case reste consommée.
+                var next = attackSequencer.SubmitChallengeResult(success ? ComputerBoard.ReceiveShot : ComputerBoard.ReceiveShotForcedMiss);
+                if (next is { } cell)
+                    return OpenChallenge(ChallengeKind.Attack, cell);
+
+                _pendingTurn = null;
+                return FinishAttackPhase(attackSequencer.Resolutions, pending.PlayerScan, pending.PlayerWeapon);
+            }
+
+            var defenseSequencer = pending.DefenseSequencer!;
+            // Réussite = le navire esquive ce tir (case toujours rejouable) ; échec = résolution normale (peut couler).
+            var defenseNext = defenseSequencer.SubmitChallengeResult(success ? HumanBoard.ReceiveShotDodged : HumanBoard.ReceiveShot);
+            if (defenseNext is { } defenseCell)
+                return OpenChallenge(ChallengeKind.Defense, defenseCell);
+
+            _pendingTurn = null;
+            return FinalizeTurn(pending.PlayerShots!, pending.PlayerScan, pending.PlayerWeapon, defenseSequencer.Resolutions, pending.ComputerWeapon);
+        }
+    }
+
+    /// <summary>Construit et enregistre le tour terminé (attaque et défense toutes deux résolues) ; seul point qui déclare une victoire par épuisement de la flotte adverse.</summary>
+    private MoveResult FinalizeTurn(
+        IReadOnlyList<ShotResolution> playerShots, ScanResult? playerScan, WeaponKind? playerWeapon,
+        IReadOnlyList<ShotResolution> computerShots, WeaponKind? computerWeapon)
+    {
+        if (Winner is null && HumanBoard.AllSunk)
+            Winner = PlayerId.Computer;
+
+        var turn = new TurnResult(playerShots, playerScan, playerWeapon, computerShots, computerWeapon, Winner, Status);
         _history.Add(turn);
+        _pendingTurn = null;
         EvaluateAchievements();
         return new MoveResult.Accepted(turn);
     }
@@ -369,10 +497,11 @@ public sealed class Game
 
     /// <summary>
     /// La stratégie ne reçoit que la vue adverse de HumanBoard (jamais Board.Ships). Ses choix repassent par
-    /// <see cref="ValidateWeapon"/> ou <see cref="ValidateVolley"/>, puis sont résolus par le même Board que pour
-    /// le joueur : une stratégie boguée lève une exception au lieu de jouer un coup interdit au joueur.
+    /// <see cref="ValidateWeapon"/> ou <see cref="ValidateVolley"/> avant d'être résolus (par l'appelant, via un
+    /// <see cref="VolleySequencer"/>, potentiellement gaté par le mini-jeu de précision) sur le même Board que
+    /// pour le joueur : une stratégie boguée lève une exception au lieu de jouer un coup interdit au joueur.
     /// </summary>
-    private (IReadOnlyList<ShotResolution> Shots, WeaponKind? Weapon) PlayComputerTurn()
+    private (IReadOnlyList<Coordinate> Targets, WeaponKind? Weapon, bool StopOnFirstHit) ChooseComputerMove()
     {
         var view = HumanBoard.ToOpponentBoardDto();
 
@@ -383,7 +512,7 @@ public sealed class Game
                 throw new InvalidOperationException($"La stratégie de l'ordinateur a proposé une arme invalide ({weaponRejection}) : {weapon}.");
 
             ComputerArsenal.Consume(weapon.Kind);
-            return (HumanBoard.ReceiveWeapon(weapon), weapon.Kind);
+            return (WeaponRules.Cells(weapon)!, weapon.Kind, weapon is WeaponAction.Torpedo);
         }
 
         var count = Options.ShotMode == ShotMode.Salvo ? SalvoSize(ComputerBoard, HumanBoard) : 1;
@@ -392,6 +521,6 @@ public sealed class Game
         if (ValidateVolley(HumanBoard, targets, count) is { } reason)
             throw new InvalidOperationException($"La stratégie de l'ordinateur a proposé un tir invalide ({reason}) : {string.Join(", ", targets)}.");
 
-        return (ResolveVolley(HumanBoard, targets), null);
+        return (targets, null, false);
     }
 }

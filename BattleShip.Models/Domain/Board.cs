@@ -76,31 +76,6 @@ public sealed class Board
         return scan;
     }
 
-    /// <summary>
-    /// Résout une arme case par case avec <see cref="ReceiveShot"/> : les cases déjà jouées sont traversées sans
-    /// effet, la torpille s'arrête sur le premier navire touché, et tout s'arrête dès que la flotte est coulée.
-    /// Suppose l'action déjà validée par Game (arme dans la grille, au moins une case non jouée).
-    /// </summary>
-    public IReadOnlyList<ShotResolution> ReceiveWeapon(WeaponAction action)
-    {
-        var cells = WeaponRules.Cells(action)
-            ?? throw new InvalidOperationException($"Arme hors grille : {action}.");
-
-        var resolutions = new List<ShotResolution>();
-        foreach (var cell in cells)
-        {
-            if (!IsValidTarget(cell))
-                continue;
-
-            var resolution = ReceiveShot(cell);
-            resolutions.Add(resolution);
-            if (AllSunk || (action is WeaponAction.Torpedo && resolution.Outcome != ShotOutcome.Miss))
-                break;
-        }
-
-        return resolutions;
-    }
-
     public ShotResolution ReceiveShot(Coordinate target)
     {
         _shotsReceived.Add(target);
@@ -114,6 +89,24 @@ public sealed class Board
             ? new ShotResolution(target, ShotOutcome.Sunk, ship.Kind)
             : new ShotResolution(target, ShotOutcome.Hit, null);
     }
+
+    /// <summary>
+    /// Un tir d'attaque raté au timing (voir docs/adr/0019-mini-jeu-de-precision.md). Nom distinct de
+    /// <see cref="ReceiveShotDodged"/> pour la clarté au point d'appel (<c>Game.ResolveChallenge</c>), mais même
+    /// comportement requis : si la case était consommée malgré le raté, ce navire ne pourrait plus jamais être
+    /// totalement touché et ne coulerait donc jamais.
+    /// </summary>
+    public ShotResolution ReceiveShotForcedMiss(Coordinate target) => ReceiveShotDodged(target);
+
+    /// <summary>Vrai si <paramref name="cell"/> porte un navire dont c'est la dernière case non touchée (le coup qui le couperait).</summary>
+    public bool WouldSink(Coordinate cell) => _ships.Any(s => s.WouldSink(cell));
+
+    /// <summary>
+    /// Une défense réussie : le tir a bien eu lieu (compte dans le journal de partie) mais n'affecte jamais le
+    /// navire et ne marque jamais la case comme jouée — la case reste une cible valide plus tard (voir
+    /// docs/adr/0019-mini-jeu-de-precision.md).
+    /// </summary>
+    public ShotResolution ReceiveShotDodged(Coordinate target) => new(target, ShotOutcome.Miss, null);
 
     private static IReadOnlyList<Coordinate>? ComputeCells(Coordinate origin, Orientation orientation, int length)
     {

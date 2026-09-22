@@ -45,7 +45,7 @@ public static class BoardViewMapper
     public static ScanResultDto ToScanResultDto(this ScanResult scan) => new(scan.Origin.ToDto(), scan.ShipDetected);
 
     public static GameOptionsDto ToDto(this GameOptions options) =>
-        new(options.Radar, options.ShotMode.ToString(), options.SpecialWeapons, options.Difficulty.ToString());
+        new(options.Radar, options.ShotMode.ToString(), options.SpecialWeapons, options.Difficulty.ToString(), options.PrecisionMinigame);
 
     /// <summary>Suppose la requête déjà validée (CreateGameRequestDtoValidator) : un mode ou une difficulté inconnus lèvent ici.</summary>
     public static GameOptions ToGameOptions(this CreateGameRequestDto request) =>
@@ -54,7 +54,8 @@ public static class BoardViewMapper
             Radar = request.Radar,
             ShotMode = Enum.Parse<ShotMode>(request.ShotMode),
             SpecialWeapons = request.SpecialWeapons,
-            Difficulty = Enum.Parse<AiDifficulty>(request.Difficulty)
+            Difficulty = Enum.Parse<AiDifficulty>(request.Difficulty),
+            PrecisionMinigame = request.PrecisionMinigame
         };
 
     /// <summary>Suppose la requête déjà validée (CreateGameRequestDtoValidator) : un Kind/Orientation inconnu lève ici.</summary>
@@ -106,7 +107,12 @@ public static class BoardViewMapper
             game.Options.ToDto(),
             game.ToPlayerActionsDto(),
             game.History.Select(ToJournalEntryDto).ToList(),
-            game.ToAchievementsDto());
+            game.ToAchievementsDto(),
+            game.PendingChallenge?.ToTimingChallengeDto());
+
+    /// <summary>Voir docs/adr/0019-mini-jeu-de-precision.md : StartedAtUtc est l'horloge serveur, seule source de vérité pour le résultat.</summary>
+    public static TimingChallengeDto ToTimingChallengeDto(this PendingChallenge challenge) =>
+        new(challenge.Id, challenge.Kind.ToString(), TimingRules.ZoneStart, TimingRules.ZoneWidth, TimingRules.PeriodMs, challenge.StartedAtUtc);
 
     public static TurnResultDto ToTurnResultDto(this Game game, TurnResult turn) =>
         new(

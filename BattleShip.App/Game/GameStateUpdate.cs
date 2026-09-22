@@ -18,6 +18,10 @@ public static class GameStateUpdate
         OpponentBoard = turn.OpponentBoard,
         Actions = turn.Actions,
         History = turn.History,
-        Achievements = turn.Achievements
+        Achievements = turn.Achievements,
+        // Un TurnResultDto ne peut exister que pour un tour entièrement résolu (voir docs/adr/0019-mini-jeu-de-precision.md,
+        // Game.FinalizeTurn) : un défi encore affiché juste avant ce tour ne l'est plus, sans quoi il resterait
+        // figé à l'écran indéfiniment (with-expression : un champ non listé ici garde sa valeur précédente).
+        PendingChallenge = null
     };
 }

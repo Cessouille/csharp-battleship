@@ -49,6 +49,19 @@ message GameOptionsMessage {
   string shot_mode = 2; // "Classic" | "Salvo"
   bool special_weapons = 3;
   string difficulty = 4; // "Easy" | "Medium" | "Hard"
+  bool precision_minigame = 5; // voir docs/adr/0019-mini-jeu-de-precision.md
+}
+
+// Défi de timing ouvert (voir docs/adr/0019-mini-jeu-de-precision.md) : le client anime la barre à partir de ces
+// paramètres mais ne décide jamais du résultat. La résolution passe uniquement par le REST
+// POST /api/games/{gameId}/challenges/{challengeId}/resolve, quel que soit le transport qui a ouvert le défi.
+message TimingChallengeMessage {
+  string challenge_id = 1;
+  string kind = 2;       // "Attack" | "Defense"
+  double zone_start = 3;
+  double zone_width = 4;
+  int32 period_ms = 5;
+  string started_at_utc = 6; // horodatage serveur ISO 8601, seule source de vérité
 }
 
 message ArsenalMessage {
@@ -73,6 +86,7 @@ message GameStateReply {
   PlayerActionsMessage actions = 7;
   repeated JournalEntryMessage history = 8; // TICKET-10 : journal chronologique, survit au rechargement
   repeated string achievements = 9; // TICKET-12 : identifiants de succès débloqués (voir docs/adr/0017-systeme-de-succes.md)
+  TimingChallengeMessage pending_challenge = 10; // absent si aucun défi de timing en attente
 }
 
 message JournalEntryMessage {

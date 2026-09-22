@@ -25,6 +25,10 @@ public static class GameStateMapper
         return reply;
     }
 
+    /// <summary>Voir docs/adr/0019-mini-jeu-de-precision.md : le scan a eu lieu (jamais gaté) mais la riposte de l'ordinateur attend la résolution d'un défi — <c>State.PendingChallenge</c> porte l'information, pas de tir ni d'arme côté ordinateur pour l'instant.</summary>
+    public static ScanZoneReply ToScanZoneReply(Game game, ScanResult scan) =>
+        new() { Scan = ToScanMessage(scan.ToScanResultDto()), State = ToGameStateReply(game), ComputerWeapon = string.Empty };
+
     public static PlaySalvoReply ToPlaySalvoReply(Game game, TurnResult turn)
     {
         var dto = game.ToTurnResultDto(turn);
@@ -37,6 +41,10 @@ public static class GameStateMapper
         reply.ComputerShots.AddRange(dto.ComputerShots.Select(ToShotResultMessage));
         return reply;
     }
+
+    /// <summary>Voir docs/adr/0019-mini-jeu-de-precision.md : la salve elle-même attend la résolution d'un défi d'attaque, avant même de savoir ce que ripostera l'ordinateur — listes vides, <c>State.PendingChallenge</c> porte l'information.</summary>
+    public static PlaySalvoReply ToPlaySalvoReply(Game game) =>
+        new() { State = ToGameStateReply(game), ComputerWeapon = string.Empty };
 
     private static GameStateReply ToGameStateReply(GameStateDto state)
     {
@@ -52,7 +60,8 @@ public static class GameStateMapper
                 Radar = state.Options.Radar,
                 ShotMode = state.Options.ShotMode,
                 SpecialWeapons = state.Options.SpecialWeapons,
-                Difficulty = state.Options.Difficulty
+                Difficulty = state.Options.Difficulty,
+                PrecisionMinigame = state.Options.PrecisionMinigame
             },
             Actions = new PlayerActionsMessage
             {
@@ -60,12 +69,24 @@ public static class GameStateMapper
                 SalvoSize = state.Actions.SalvoSize,
                 Arsenal = ToArsenalMessage(state.Actions.Arsenal),
                 OpponentArsenal = ToArsenalMessage(state.Actions.OpponentArsenal)
-            }
+            },
+            PendingChallenge = state.PendingChallenge is null ? null : ToTimingChallengeMessage(state.PendingChallenge)
         };
         reply.History.AddRange(state.History.Select(ToJournalEntryMessage));
         reply.Achievements.AddRange(state.Achievements);
         return reply;
     }
+
+    private static TimingChallengeMessage ToTimingChallengeMessage(TimingChallengeDto challenge) =>
+        new()
+        {
+            ChallengeId = challenge.ChallengeId.ToString(),
+            Kind = challenge.Kind,
+            ZoneStart = challenge.ZoneStart,
+            ZoneWidth = challenge.ZoneWidth,
+            PeriodMs = challenge.PeriodMs,
+            StartedAtUtc = challenge.StartedAtUtc.ToString("O")
+        };
 
     private static JournalEntryMessage ToJournalEntryMessage(JournalEntryDto entry)
     {

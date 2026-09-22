@@ -49,11 +49,17 @@ public static class GameEndpoints
         group.MapPost("/{gameId:guid}/airstrikes", (Guid gameId, AirStrikeRequestDto request, InMemoryGameStore store) =>
             PlayMove(store, gameId, game => game.PlayHumanWeapon(request.ToWeaponAction())))
             .AddEndpointFilter<ValidationFilter<AirStrikeRequestDto>>();
+
+        // Voir docs/adr/0019-mini-jeu-de-precision.md : point d'entrée unique pour résoudre un défi de timing,
+        // quelle que soit l'action (REST ou gRPC-Web) qui l'a ouvert. Pas de corps JSON : challengeId suffit,
+        // le résultat se calcule uniquement à partir de l'horloge serveur (jamais déclaré par le client).
+        group.MapPost("/{gameId:guid}/challenges/{challengeId:guid}/resolve", (Guid gameId, Guid challengeId, InMemoryGameStore store) =>
+            PlayMove(store, gameId, game => game.ResolveChallenge(challengeId)));
     }
 
-    // PlayHumanShot/Salvo/Weapon verrouillent déjà chacun à eux seuls, mais Locked est réentrant : ce bloc englobe
-    // aussi le mapping DTO qui suit, pour qu'aucune autre requête sur ce gameId ne s'intercale entre le coup et
-    // la lecture de son résultat.
+    // PlayHumanShot/Salvo/Weapon/ResolveChallenge verrouillent déjà chacun à eux seuls, mais Locked est réentrant :
+    // ce bloc englobe aussi le mapping DTO qui suit, pour qu'aucune autre requête sur ce gameId ne s'intercale
+    // entre le coup et la lecture de son résultat.
     private static IResult PlayMove(InMemoryGameStore store, Guid gameId, Func<Game, MoveResult> move)
     {
         var game = store.Find(gameId);
@@ -65,7 +71,13 @@ public static class GameEndpoints
     private static IResult ToTurnResponse(Game game, MoveResult result) =>
         result switch
         {
+            // Tour terminé (avec ou sans défi de timing entre-temps) : 200, forme inchangée pour tout appelant existant.
             MoveResult.Accepted accepted => Results.Ok(game.ToTurnResultDto(accepted.Turn)),
+            // Tour suspendu en attendant la résolution d'un défi (voir docs/adr/0019-mini-jeu-de-precision.md) :
+            // 202, ce n'est pas une erreur, juste un résultat pas encore final. État complet (pas seulement le
+            // défi) pour que les cases déjà résolues plus tôt dans un même lot (salve, arme) restent visibles
+            // côté client sans attendre la fin du tour entier.
+            MoveResult.AwaitingChallenge => Results.Accepted(value: game.ToGameStateDto()),
             MoveResult.Rejected rejected => ToConflict(rejected.Reason),
             _ => Results.Problem("Résultat de coup inattendu.")
         };

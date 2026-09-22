@@ -1,0 +1,72 @@
+@namespace BattleShip.App.Components
+@using System.Globalization
+@using BattleShip.Models.Contracts
+@using BattleShip.Models.Domain
+
+@* Mini-jeu de précision (voir docs/adr/0019-mini-jeu-de-precision.md) : le serveur envoie les paramètres de la
+   barre et l'horodatage de départ, ce composant se contente de les afficher et de signaler l'arrêt — jamais de
+   décider seul de la réussite. @onkeydown:preventDefault empêche l'espace de faire défiler la page pendant que
+   le conteneur a le focus. *@
+<div class="timing-challenge" tabindex="0" @ref="_container" @onkeydown="OnKeyDownAsync" @onkeydown:preventDefault="true">
+    <p class="timing-challenge-title">@(Challenge.Kind == nameof(ChallengeKind.Defense) ? "Défense !" : "Tir !")</p>
+    <svg class="timing-bar" viewBox="0 0 400 60" role="img" aria-label="Barre de précision" @onclick="StopAsync">
+        <defs>
+            <linearGradient id="@_gradientId" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" class="timing-edge-stop" />
+                <stop offset="@Percent(_zoneStart)" class="timing-edge-stop" />
+                <stop offset="@Percent(_zoneStart)" class="timing-zone-stop" />
+                <stop offset="@Percent(_zoneEnd)" class="timing-zone-stop" />
+                <stop offset="@Percent(_zoneEnd)" class="timing-edge-stop" />
+                <stop offset="100%" class="timing-edge-stop" />
+            </linearGradient>
+        </defs>
+        <rect x="0" y="12" width="400" height="36" rx="10" fill="url(#@_gradientId)" />
+        <rect class="timing-cursor" y="4" width="4" height="52" rx="2"
+              style="animation-duration:@((Challenge.PeriodMs * 2).ToString(CultureInfo.InvariantCulture))ms; animation-delay:@(_animationDelayMs.ToString("0", CultureInfo.InvariantCulture))ms;" />
+    </svg>
+    <p class="timing-challenge-hint">Cliquez la barre ou appuyez sur Espace quand le curseur est dans la zone rose.</p>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public TimingChallengeDto Challenge { get; set; } = default!;
+
+    /// <summary>Invoqué une seule fois, dès le premier arrêt signalé (clic ou Espace) ; le parent appelle alors l'API de résolution.</summary>
+    [Parameter] public EventCallback OnStop { get; set; }
+
+    private ElementReference _container;
+    private bool _stopped;
+    private readonly string _gradientId = $"timing-gradient-{Guid.NewGuid():N}";
+    private double _zoneStart;
+    private double _zoneEnd;
+    private double _animationDelayMs;
+
+    protected override void OnParametersSet()
+    {
+        _stopped = false;
+        _zoneStart = Challenge.ZoneStart;
+        _zoneEnd = Challenge.ZoneStart + Challenge.ZoneWidth;
+        // Décalage négatif : resynchronise l'animation sur l'horloge serveur malgré la latence réseau écoulée
+        // avant l'affichage (limite connue : ne compense pas la latence de l'aller-retour de résolution).
+        _animationDelayMs = -(DateTimeOffset.UtcNow - Challenge.StartedAtUtc).TotalMilliseconds;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+            await _container.FocusAsync();
+    }
+
+    private static string Percent(double fraction) => (fraction * 100).ToString("0.##", CultureInfo.InvariantCulture) + "%";
+
+    private Task OnKeyDownAsync(KeyboardEventArgs e) =>
+        e.Key is " " or "Spacebar" or "Enter" ? StopAsync() : Task.CompletedTask;
+
+    private Task StopAsync()
+    {
+        if (_stopped)
+            return Task.CompletedTask;
+
+        _stopped = true;
+        return OnStop.InvokeAsync();
+    }
+}

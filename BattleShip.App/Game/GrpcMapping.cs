@@ -13,14 +13,18 @@ public static class GrpcMapping
             string.IsNullOrEmpty(reply.Winner) ? null : reply.Winner,
             reply.MyBoard.ToMyBoardDto(),
             reply.OpponentBoard.ToOpponentBoardDto(),
-            new GameOptionsDto(reply.Options.Radar, reply.Options.ShotMode, reply.Options.SpecialWeapons, reply.Options.Difficulty),
+            new GameOptionsDto(reply.Options.Radar, reply.Options.ShotMode, reply.Options.SpecialWeapons, reply.Options.Difficulty, reply.Options.PrecisionMinigame),
             new PlayerActionsDto(
                 reply.Actions.ScansRemaining,
                 reply.Actions.SalvoSize,
                 new ArsenalDto(reply.Actions.Arsenal.Torpedoes, reply.Actions.Arsenal.AirStrikes),
                 new ArsenalDto(reply.Actions.OpponentArsenal.Torpedoes, reply.Actions.OpponentArsenal.AirStrikes)),
             reply.History.Select(ToJournalEntryDto).ToList(),
-            reply.Achievements.ToList());
+            reply.Achievements.ToList(),
+            reply.PendingChallenge is null ? null : reply.PendingChallenge.ToTimingChallengeDto());
+
+    public static TimingChallengeDto ToTimingChallengeDto(this TimingChallengeMessage message) =>
+        new(Guid.Parse(message.ChallengeId), message.Kind, message.ZoneStart, message.ZoneWidth, message.PeriodMs, DateTimeOffset.Parse(message.StartedAtUtc));
 
     public static JournalEntryDto ToJournalEntryDto(this JournalEntryMessage message) =>
         new(

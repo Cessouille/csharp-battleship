@@ -106,4 +106,63 @@ public class GrpcSalvoTests(WebApplicationFactory<Program> factory) : IClassFixt
 
         Assert.Equal(StatusCode.InvalidArgument, ex.StatusCode);
     }
+
+    /// <summary>
+    /// Voir docs/adr/0019-mini-jeu-de-precision.md. Le plateau ordinateur reste placé au hasard (ADR 0013) : on
+    /// balaie la grille salve par salve jusqu'à ce qu'un défi s'ouvre (au plus 20 salves de 5, la flotte adverse
+    /// occupe 17 cases sur 100). Vérifie uniquement que PlaySalvoReply.State expose le défi — le détail des règles
+    /// de déclenchement est couvert par BattleShip.Tests.Engine.PrecisionMinigameTests (horloge contrôlable).
+    /// </summary>
+    [Fact]
+    public async Task PlaySalvo_TriggeringAChallenge_ExposesItOnReplyState()
+    {
+        var game = await _restClient.CreateGameAsync(new CreateGameRequestDto(ShotMode: nameof(ShotMode.Salvo), PrecisionMinigame: true));
+
+        for (var attempt = 0; attempt < 20; attempt++)
+        {
+            var state = await _restClient.GetFromJsonAsync<GameStateDto>($"/api/games/{game.GameId}");
+            if (state!.PendingChallenge is not null)
+            {
+                AssertWellFormed(state.PendingChallenge);
+                return;
+            }
+
+            var played = state.OpponentBoard.Hits.Concat(state.OpponentBoard.Misses).Select(c => (c.Row, c.Column)).ToHashSet();
+            var nextCells = AllCells().Where(c => !played.Contains(c)).Take(state.Actions.SalvoSize).ToArray();
+            if (nextCells.Length < state.Actions.SalvoSize)
+                break; // plateau épuisé : ne devrait pas arriver, la flotte occupe 17 cases sur 100
+
+            var reply = await _client.PlaySalvoAsync(Salvo(game.GameId, nextCells));
+            if (reply.State.PendingChallenge is { } fromReply)
+            {
+                AssertWellFormed(fromReply);
+                return;
+            }
+        }
+
+        Assert.Fail("Aucun défi de timing déclenché après 20 salves — la flotte adverse occupe pourtant 17 cases sur 100.");
+    }
+
+    private static void AssertWellFormed(TimingChallengeMessage challenge)
+    {
+        Assert.NotEmpty(challenge.ChallengeId);
+        Assert.InRange(challenge.ZoneStart, 0, 1);
+        Assert.InRange(challenge.ZoneStart + challenge.ZoneWidth, 0, 1);
+        Assert.True(challenge.PeriodMs > 0);
+    }
+
+    private static void AssertWellFormed(TimingChallengeDto challenge)
+    {
+        Assert.NotEqual(Guid.Empty, challenge.ChallengeId);
+        Assert.InRange(challenge.ZoneStart, 0, 1);
+        Assert.InRange(challenge.ZoneStart + challenge.ZoneWidth, 0, 1);
+        Assert.True(challenge.PeriodMs > 0);
+    }
+
+    private static IEnumerable<(int Row, int Column)> AllCells()
+    {
+        for (var row = 0; row < BoardGrid.Size; row++)
+            for (var column = 0; column < BoardGrid.Size; column++)
+                yield return (row, column);
+    }
 }

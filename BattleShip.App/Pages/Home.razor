@@ -38,6 +38,13 @@
             Radar : @RadarRules.ScansPerGame scans d'une zone @(RadarRules.ZoneSize)×@(RadarRules.ZoneSize), chacun à la place d'un tir
         </label>
     </div>
+    <div class="form-check">
+        <input class="form-check-input" type="checkbox" id="option-precision-minigame" @bind="_precisionMinigame" />
+        <label class="form-check-label" for="option-precision-minigame">
+            Mini-jeu de précision : un tir sur un navire (à l'attaque comme à la défense) doit être validé par un
+            mini-jeu de timing pour toucher réellement
+        </label>
+    </div>
 </fieldset>
 
 <fieldset class="mb-3">
@@ -93,6 +100,7 @@
     private bool _radar;
     private bool _salvo;
     private bool _weapons;
+    private bool _precisionMinigame;
     private bool _manualPlacement;
     private AiDifficulty _difficulty = AiDifficulty.Hard;
     private readonly PlacementViewModel _placement = new();
@@ -119,7 +127,8 @@
                 SpecialWeapons: _weapons,
                 Placements: _manualPlacement ? _placement.ToPlacementDtos() : null,
                 Difficulty: _difficulty.ToString(),
-                PlayerId: playerId.ToString()));
+                PlayerId: playerId.ToString(),
+                PrecisionMinigame: _precisionMinigame));
             if (!response.IsSuccessStatusCode)
             {
                 _error = $"La création de la partie a échoué (HTTP {(int)response.StatusCode}).";

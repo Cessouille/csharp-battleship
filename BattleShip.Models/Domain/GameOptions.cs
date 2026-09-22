@@ -26,4 +26,7 @@ public sealed record GameOptions
     public bool SpecialWeapons { get; init; }
 
     public AiDifficulty Difficulty { get; init; } = AiDifficulty.Hard;
+
+    /// <summary>Voir docs/adr/0019-mini-jeu-de-precision.md. Active le mini-jeu de timing pour l'attaque et la défense ensemble.</summary>
+    public bool PrecisionMinigame { get; init; }
 }

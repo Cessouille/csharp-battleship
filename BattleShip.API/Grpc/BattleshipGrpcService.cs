@@ -29,6 +29,10 @@ public sealed class BattleshipGrpcService(
         return game.Locked(() => game.PlayHumanScan(new Coordinate(request.Row, request.Column)) switch
         {
             MoveResult.Accepted accepted => GameStateMapper.ToScanZoneReply(game, accepted.Turn),
+            // Voir docs/adr/0019-mini-jeu-de-precision.md : le scan a déjà eu lieu (jamais gaté, toujours le dernier
+            // de ComputerBoard.ScansReceived à ce point) mais la riposte de l'ordinateur attend un défi de défense ;
+            // State.PendingChallenge porte l'information, la résolution reste REST quel que soit le transport d'origine.
+            MoveResult.AwaitingChallenge => GameStateMapper.ToScanZoneReply(game, game.ComputerBoard.ScansReceived[^1]),
             MoveResult.Rejected rejected => throw ToRpcException(rejected.Reason),
             _ => throw new RpcException(new Status(StatusCode.Internal, "Résultat de coup inattendu."))
         });
@@ -44,6 +48,9 @@ public sealed class BattleshipGrpcService(
             game.PlayHumanSalvo(request.Shots.Select(s => new Coordinate(s.Row, s.Column)).ToList()) switch
             {
                 MoveResult.Accepted accepted => GameStateMapper.ToPlaySalvoReply(game, accepted.Turn),
+                // Voir docs/adr/0019-mini-jeu-de-precision.md : un défi (attaque ou défense) est ouvert, la salve
+                // n'est pas encore résolue ; State.PendingChallenge porte l'information, résolution toujours REST.
+                MoveResult.AwaitingChallenge => GameStateMapper.ToPlaySalvoReply(game),
                 MoveResult.Rejected rejected => throw ToRpcException(rejected.Reason),
                 _ => throw new RpcException(new Status(StatusCode.Internal, "Résultat de coup inattendu."))
             });

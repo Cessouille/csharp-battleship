@@ -44,6 +44,21 @@ else
         <div class="alert alert-danger">@_moveError</div>
     }
 
+    @if (_state.PendingChallenge is { } challenge)
+    {
+        <TimingChallenge @key="challenge.ChallengeId" Challenge="challenge" OnStop="OnChallengeStopAsync" />
+    }
+
+    @if (_state.Status == "InProgress" && !_busy && _state.PendingChallenge is null)
+    {
+        <form class="d-flex align-items-center gap-2 mb-2" @onsubmit="SubmitTargetCodeAsync">
+            <label for="target-code" class="form-label mb-0 small">Case cible</label>
+            <input id="target-code" class="form-control form-control-sm" style="max-width:6rem"
+                   placeholder="ex. B5" @bind="_targetCode" @bind:event="oninput" />
+            <button type="submit" class="btn btn-sm btn-outline-primary">Viser</button>
+        </form>
+    }
+
     <div class="row">
         <div class="col-auto">
             <h2 class="h5">Votre plateau</h2>
@@ -53,7 +68,7 @@ else
         <div class="col-auto">
             <h2 class="h5">Plateau adverse</h2>
             <BoardGrid Size="_state.OpponentBoard.Size" Cells="_state.OpponentBoard.ToGrid()"
-                       Interactive="@(_state.Status == "InProgress" && !_busy)" CanClick="CanClick"
+                       Interactive="@(_state.Status == "InProgress" && !_busy && _state.PendingChallenge is null)" CanClick="CanClick"
                        Selected="_selection" OnCellClick="OnOpponentCellClickAsync" />
             <FleetLegend Entries="FleetLegend.FromOpponentView(_state.OpponentBoard.SunkShips)" />
         </div>
@@ -102,6 +117,7 @@ else
     private Edge _torpedoEdge = Edge.Left;
     private Orientation _strikeOrientation = Orientation.Horizontal;
     private readonly HashSet<(int Row, int Column)> _selection = [];
+    private string _targetCode = "";
     private bool _notFound;
     private bool _busy;
     private string? _moveError;
@@ -189,6 +205,21 @@ else
         });
     }
 
+    /// <summary>Cible via le champ code (ex. "B5") plutôt que via le clic ; appelle le même point d'entrée que la
+    /// grille pour rester valide quel que soit le mode (tir, radar, torpille, frappe, sélection de salve).</summary>
+    private Task SubmitTargetCodeAsync()
+    {
+        _moveError = null;
+        if (!CellCode.TryParse(_targetCode, _state!.OpponentBoard.Size, out var cell))
+        {
+            _moveError = $"Code de case invalide : « {_targetCode} » (attendu par ex. B5).";
+            return Task.CompletedTask;
+        }
+
+        _targetCode = "";
+        return OnOpponentCellClickAsync(cell);
+    }
+
     private Task FireSalvoAsync() => RunAsync(FireSalvoGrpcAsync);
 
     /// <summary>Bloque la grille pendant l'appel : un double-clic ne doit pas envoyer deux coups.</summary>
@@ -253,6 +284,30 @@ else
     private async Task PostTurnAsync<TRequest>(string action, TRequest request)
     {
         var response = await Http.PostAsJsonAsync($"api/games/{GameId}/{action}", request);
+        await ApplyMoveResponseAsync(response);
+        if (response.StatusCode is HttpStatusCode.OK or HttpStatusCode.Accepted)
+            _selection.Clear();
+    }
+
+    /// <summary>Voir docs/adr/0019-mini-jeu-de-precision.md : réagit à l'arrêt du curseur signalé par le joueur en résolvant le défi affiché — jamais en lui demandant s'il a gagné.</summary>
+    private Task OnChallengeStopAsync()
+    {
+        var challengeId = _state!.PendingChallenge?.ChallengeId;
+        return challengeId is null
+            ? Task.CompletedTask
+            : RunAsync(async () =>
+            {
+                var response = await Http.PostAsync($"api/games/{GameId}/challenges/{challengeId}/resolve", content: null);
+                await ApplyMoveResponseAsync(response);
+            });
+    }
+
+    /// <summary>
+    /// Commun à toute action de tour, qu'elle se termine (200, TurnResultDto) ou reste en suspens en attendant un
+    /// défi de timing (202, GameStateDto complet — y compris les cases déjà résolues plus tôt dans un même lot).
+    /// </summary>
+    private async Task ApplyMoveResponseAsync(HttpResponseMessage response)
+    {
         switch (response.StatusCode)
         {
             case HttpStatusCode.OK:
@@ -264,7 +319,16 @@ else
                 }
 
                 UpdateState(_state!.Apply(turn));
-                _selection.Clear();
+                break;
+            case HttpStatusCode.Accepted:
+                var state = await response.Content.ReadFromJsonAsync<GameStateDto>();
+                if (state is null)
+                {
+                    _moveError = "Réponse du serveur inattendue (corps vide ou invalide).";
+                    return;
+                }
+
+                UpdateState(state);
                 break;
             case HttpStatusCode.Conflict:
                 var conflict = await response.Content.ReadFromJsonAsync<ConflictBody>();
@@ -272,6 +336,9 @@ else
                 break;
             case HttpStatusCode.BadRequest:
                 _moveError = "Requête refusée par la validation du serveur (coordonnées ou paramètres invalides).";
+                break;
+            case HttpStatusCode.NotFound:
+                _moveError = "Partie introuvable.";
                 break;
             default:
                 _moveError = $"Erreur inattendue (HTTP {(int)response.StatusCode}).";

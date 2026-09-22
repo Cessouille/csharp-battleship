@@ -164,4 +164,51 @@ public class BoardTests
 
         Assert.False(board.IsValidTarget(new Coordinate(row, column)));
     }
+
+    [Fact]
+    public void ReceiveShotForcedMiss_OnShipCell_ReturnsMiss_ShipNotMutated_CellStillPlayable()
+    {
+        var board = new Board();
+        board.TryPlaceShip(ShipKind.Torpilleur, new Coordinate(0, 0), Orientation.Horizontal, 1);
+        var target = new Coordinate(0, 0);
+
+        var resolution = board.ReceiveShotForcedMiss(target);
+
+        Assert.Equal(ShotOutcome.Miss, resolution.Outcome);
+        Assert.False(board.Ships[0].IsSunk);
+        Assert.True(board.IsValidTarget(target)); // sinon ce navire ne pourrait plus jamais couler (voir REVUE-IA.md)
+    }
+
+    [Fact]
+    public void WouldSink_OnLastUnhitCellOfAShip_ReturnsTrue()
+    {
+        var board = new Board();
+        board.TryPlaceShip(ShipKind.Torpilleur, new Coordinate(0, 0), Orientation.Horizontal, 2);
+        board.ReceiveShot(new Coordinate(0, 0));
+
+        Assert.True(board.WouldSink(new Coordinate(0, 1)));
+    }
+
+    [Fact]
+    public void ReceiveShotDodged_OnShipCell_ReturnsMiss_ShipNotMutated_CellStillPlayable()
+    {
+        var board = new Board();
+        board.TryPlaceShip(ShipKind.Torpilleur, new Coordinate(0, 0), Orientation.Horizontal, 1);
+        var target = new Coordinate(0, 0);
+
+        var resolution = board.ReceiveShotDodged(target);
+
+        Assert.Equal(ShotOutcome.Miss, resolution.Outcome);
+        Assert.False(board.Ships[0].IsSunk);
+        Assert.True(board.IsValidTarget(target)); // la case n'est pas consommée
+    }
+
+    [Fact]
+    public void WouldSink_OnEmptyCell_ReturnsFalse()
+    {
+        var board = new Board();
+        board.TryPlaceShip(ShipKind.Torpilleur, new Coordinate(0, 0), Orientation.Horizontal, 1);
+
+        Assert.False(board.WouldSink(new Coordinate(5, 5)));
+    }
 }

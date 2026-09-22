@@ -45,9 +45,17 @@ public sealed record CreateGameRequestDto(
     bool SpecialWeapons = false,
     IReadOnlyList<ShipPlacementDto>? Placements = null,
     string Difficulty = "Hard",
-    string? PlayerId = null);
+    string? PlayerId = null,
+    bool PrecisionMinigame = false);
 
-public sealed record GameOptionsDto(bool Radar, string ShotMode, bool SpecialWeapons, string Difficulty);
+public sealed record GameOptionsDto(bool Radar, string ShotMode, bool SpecialWeapons, string Difficulty, bool PrecisionMinigame);
+
+/// <summary>
+/// Défi de timing ouvert (voir docs/adr/0019-mini-jeu-de-precision.md) : le client anime la barre à partir de ces
+/// paramètres mais ne décide jamais du résultat — <c>StartedAtUtc</c> est l'horloge serveur, seule source de
+/// vérité une fois le défi résolu (POST /api/games/{gameId}/challenges/{challengeId}/resolve).
+/// </summary>
+public sealed record TimingChallengeDto(Guid ChallengeId, string Kind, double ZoneStart, double ZoneWidth, int PeriodMs, DateTimeOffset StartedAtUtc);
 
 public sealed record ArsenalDto(int Torpedoes, int AirStrikes);
 
@@ -78,7 +86,8 @@ public sealed record GameStateDto(
     GameOptionsDto Options,
     PlayerActionsDto Actions,
     IReadOnlyList<JournalEntryDto> History,
-    IReadOnlyList<string> Achievements);
+    IReadOnlyList<string> Achievements,
+    TimingChallengeDto? PendingChallenge);
 
 public sealed record CreateGameResponseDto(
     Guid GameId,
