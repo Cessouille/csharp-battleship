@@ -105,5 +105,7 @@ Toutes les options se cochent sur l'accueil et se combinent ; la partie classiqu
 
 - `docs/adr/` : décisions d'architecture (modèle de données, placement, résolution des tirs, stratégie de
   l'adversaire, transport gRPC-Web, stockage, concurrence, options de partie, radar, Salvo, armes).
+- `docs/ticket.md` : backlog d'extensions, arbitrages du binôme et **limites connues** du projet (état perdu au
+  redémarrage, absence d'authentification, asymétries assumées du radar et des armes spéciales, etc.).
 - `PROMPTS.md` : échanges décisifs avec l'IA.
 - `REVUE-IA.md` : revues critiques de propositions IA.

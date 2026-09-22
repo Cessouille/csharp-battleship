@@ -483,5 +483,4 @@ $RECYCLE.BIN/
 
 # Rapports d'audit générés localement (skills .claude/skills/audit-*) : pas besoin de les versionner
 docs/audits/
-docs/ticket.md
 CLAUDE.md
