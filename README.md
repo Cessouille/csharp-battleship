@@ -83,6 +83,10 @@ Toutes les options se cochent sur l'accueil et se combinent ; la partie classiqu
   et pose manuelle case par case (clic + orientation) ; l'ordinateur reste toujours placé au hasard.
 - **IA à difficulté réglable** (ADR 0015) : trois paliers choisis à la création — Facile (tir aléatoire), Moyen
   (chasse/cible sans grille de densité), Difficile (grille de probabilité, défaut historique inchangé).
+- **Mini-jeu de précision** (ADR 0019) : un tir sur une case occupée (à l'attaque) ou une riposte adverse qui
+  couperait un navire (à la défense) doit être validé par un mini-jeu de timing en SVG — une barre horizontale
+  avec une zone rose centrale et un curseur en va-et-vient, à arrêter au clic ou à la touche Espace. Le serveur
+  reste seul juge du résultat (horodatage serveur, jamais un résultat déclaré par le client).
 - Les options sont décrites par `docs/adr/0009-options-de-partie.md`.
 
 ## Autres fonctionnalités livrées au-delà du socle
@@ -114,9 +118,10 @@ mémoire, pas de vraie persistance), un historique inter-parties via le profil j
 Extensions retenues puis livrées au-delà du socle, dans cet ordre : adversaire par grille de probabilité,
 options de partie à la création, radar en gRPC-Web, mode Salvo symétrique, armes spéciales, puis (deuxième et
 troisième vagues) placement manuel de la flotte, IA à difficulté réglable, Salve en second flux gRPC-Web,
-journal de partie affiché en direct, système de succès et profil joueur anonyme. L'ordre va du moins invasif
-(aucun changement de contrat) au plus invasif (refonte de la résolution d'un tour, ou nouvelle représentation
-d'état pour les succès/le profil). Règles tranchées par le binôme et détail par ticket dans `docs/ticket.md`.
+journal de partie affiché en direct, système de succès, profil joueur anonyme, puis mini-jeu de précision (ADR
+0019, la refonte la plus invasive : la résolution d'un tour, jusque-là entièrement synchrone, devient
+interruptible). L'ordre va du moins invasif (aucun changement de contrat) au plus invasif. Règles tranchées par
+le binôme et détail par ticket dans `docs/ticket.md`.
 Écarté : navires en formes libres (tétrominos), qui aurait imposé de refaire toute la validation du placement.
 Grille et flotte configurables (TICKET-09) et tests de composants Blazor bUnit (TICKET-11) restent au statut
 `proposé` dans `docs/ticket.md`, non tranchés par le binôme faute de temps.
@@ -139,6 +144,9 @@ Grille et flotte configurables (TICKET-09) et tests de composants Blazor bUnit (
 - Le profil joueur (ADR 0018) est une projection recalculée à chaque lecture, sans aucune protection contre un
   navigateur qui viderait son `localStorage` : un joueur qui perd son identifiant perd l'accès à son historique
   de succès, sans possibilité de le retrouver.
+- Le mini-jeu de précision (ADR 0019) reste sensible à la latence réseau : le serveur calcule le résultat à
+  partir du temps réellement écoulé depuis l'ouverture du défi, donc la fenêtre perçue par le joueur (animée
+  côté client) peut légèrement différer de la fenêtre validée côté serveur sur une connexion lente.
 
 ## Documentation complémentaire
 
