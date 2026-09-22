@@ -101,58 +101,9 @@ Toutes les options se cochent sur l'accueil et se combinent ; la partie classiqu
   aucun état de profil stocké séparément (`GET /api/players/{id}`, recalculé à chaque appel à partir des parties
   connues pour ce joueur).
 
-## Arbitrages du backlog
-
-Périmètre retenu pour ce socle : une partie complète jouable de bout en bout contre l'ordinateur, avec un
-stockage de partie en mémoire (pas de persistance, pas de compte joueur, voir `docs/adr/0006-stockage-etat-partie.md`).
-Le socle a d'abord été livré avec un adversaire à tir aléatoire (`docs/adr/0004-strategie-adversaire.md`), remplacé
-ensuite par la grille de probabilité (`docs/adr/0008-ia-grille-probabilite.md`).
-
-Pistes du backlog explicitement écartées pour le socle (première itération), avec la raison : multijoueur
-(nécessiterait une machine à état "à qui le tour", voir `docs/adr/0001-modele.md`), sauvegarde/persistance,
-personnalisation du placement de la flotte par le joueur. Aucune de ces pistes n'était nécessaire pour démontrer
-le parcours complet exigé par le socle. Deux d'entre elles ont depuis été revisitées comme extensions : le
-placement manuel (ADR 0013) et, sous une forme limitée assumée par l'ADR 0006 (état de partie toujours en
-mémoire, pas de vraie persistance), un historique inter-parties via le profil joueur (ADR 0018).
-
-Extensions retenues puis livrées au-delà du socle, dans cet ordre : adversaire par grille de probabilité,
-options de partie à la création, radar en gRPC-Web, mode Salvo symétrique, armes spéciales, puis (deuxième et
-troisième vagues) placement manuel de la flotte, IA à difficulté réglable, Salve en second flux gRPC-Web,
-journal de partie affiché en direct, système de succès, profil joueur anonyme, puis mini-jeu de précision (ADR
-0019, la refonte la plus invasive : la résolution d'un tour, jusque-là entièrement synchrone, devient
-interruptible). L'ordre va du moins invasif (aucun changement de contrat) au plus invasif. Règles tranchées par
-le binôme et détail par ticket dans `docs/ticket.md`.
-Écarté : navires en formes libres (tétrominos), qui aurait imposé de refaire toute la validation du placement.
-Grille et flotte configurables (TICKET-09) et tests de composants Blazor bUnit (TICKET-11) restent au statut
-`proposé` dans `docs/ticket.md`, non tranchés par le binôme faute de temps.
-
-## Limites connues
-
-- L'état des parties (et le profil joueur, qui en est dérivé) est perdu au redémarrage de l'API (stockage en
-  mémoire, voir ADR 0006).
-- Aucune authentification : quiconque connaît l'identifiant (GUID) d'une partie peut la consulter/y jouer, et
-  quiconque connaît un identifiant joueur peut lire son profil (`GET /api/players/{id}`, même limite assumée
-  dans l'ADR 0018).
-- Avec les armes spéciales, l'ordinateur lance sa torpille dès son premier tour (heuristique simple, ADR 0012).
-- La règle de la frappe aérienne sur des cases déjà jouées (ignorées) a été déduite de celle de la torpille et
-  reste à confirmer par le binôme.
-- Le radar est réservé au joueur (asymétrie assumée, ADR 0010).
-- Le catalogue de succès est verrouillé (11 identifiants figés, jamais renommés) ; plusieurs points de règle
-  fins de chaque succès (motif exact du cœur/nœud papillon, interruption d'une série par un scan, etc.) sont
-  des arbitrages assumés documentés directement dans le code des règles et dans l'ADR 0017, pas des règles
-  universellement établies de bataille navale.
-- Le profil joueur (ADR 0018) est une projection recalculée à chaque lecture, sans aucune protection contre un
-  navigateur qui viderait son `localStorage` : un joueur qui perd son identifiant perd l'accès à son historique
-  de succès, sans possibilité de le retrouver.
-- Le mini-jeu de précision (ADR 0019) reste sensible à la latence réseau : le serveur calcule le résultat à
-  partir du temps réellement écoulé depuis l'ouverture du défi, donc la fenêtre perçue par le joueur (animée
-  côté client) peut légèrement différer de la fenêtre validée côté serveur sur une connexion lente.
-
 ## Documentation complémentaire
 
 - `docs/adr/` : décisions d'architecture (modèle de données, placement, résolution des tirs, stratégie de
   l'adversaire, transport gRPC-Web, stockage, concurrence, options de partie, radar, Salvo, armes).
-- `docs/ticket.md` : tickets d'extension au-delà du socle (règles actées, statut, ADR associée), en complément de
-  la section « Arbitrages du backlog » ci-dessus.
 - `PROMPTS.md` : échanges décisifs avec l'IA.
 - `REVUE-IA.md` : revues critiques de propositions IA.

@@ -735,3 +735,25 @@ représentation d'état → aurait nécessité un ADR dédié. Laissé de côté
 ci-dessus ; à reconsidérer si le socle est solide et qu'il reste du temps.
 
 **Source** : [UltraBoardGames — variante "Tetris Battleship"](https://www.ultraboardgames.com/battleship/variations.php)
+
+## Limites connues
+
+- L'état des parties (et le profil joueur, qui en est dérivé) est perdu au redémarrage de l'API (stockage en
+  mémoire, voir ADR 0006).
+- Aucune authentification : quiconque connaît l'identifiant (GUID) d'une partie peut la consulter/y jouer, et
+  quiconque connaît un identifiant joueur peut lire son profil (`GET /api/players/{id}`, même limite assumée
+  dans l'ADR 0018).
+- Avec les armes spéciales, l'ordinateur lance sa torpille dès son premier tour (heuristique simple, ADR 0012).
+- La règle de la frappe aérienne sur des cases déjà jouées (ignorées) a été déduite de celle de la torpille et
+  reste à confirmer par le binôme.
+- Le radar est réservé au joueur (asymétrie assumée, ADR 0010).
+- Le catalogue de succès est verrouillé (11 identifiants figés, jamais renommés) ; plusieurs points de règle
+  fins de chaque succès (motif exact du cœur/nœud papillon, interruption d'une série par un scan, etc.) sont
+  des arbitrages assumés documentés directement dans le code des règles et dans l'ADR 0017, pas des règles
+  universellement établies de bataille navale.
+- Le profil joueur (ADR 0018) est une projection recalculée à chaque lecture, sans aucune protection contre un
+  navigateur qui viderait son `localStorage` : un joueur qui perd son identifiant perd l'accès à son historique
+  de succès, sans possibilité de le retrouver.
+- Le mini-jeu de précision (ADR 0019) reste sensible à la latence réseau : le serveur calcule le résultat à
+  partir du temps réellement écoulé depuis l'ouverture du défi, donc la fenêtre perçue par le joueur (animée
+  côté client) peut légèrement différer de la fenêtre validée côté serveur sur une connexion lente.
