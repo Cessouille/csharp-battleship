@@ -49,13 +49,13 @@ else
         <TimingChallenge @key="challenge.ChallengeId" Challenge="challenge" OnStop="OnChallengeStopAsync" />
     }
 
-    @if (_state.Status == "InProgress" && !_busy && _state.PendingChallenge is null)
+    @if (_state.Status == "InProgress" && _state.PendingChallenge is null)
     {
         <form class="d-flex align-items-center gap-2 mb-2" @onsubmit="SubmitTargetCodeAsync">
             <label for="target-code" class="form-label mb-0 small">Case cible</label>
             <input id="target-code" class="form-control form-control-sm" style="max-width:6rem"
-                   placeholder="ex. B5" @bind="_targetCode" @bind:event="oninput" />
-            <button type="submit" class="btn btn-sm btn-outline-primary">Viser</button>
+                   placeholder="ex. B5" @bind="_targetCode" @bind:event="oninput" disabled="@_busy" />
+            <button type="submit" class="btn btn-sm btn-outline-primary" disabled="@_busy">Viser</button>
         </form>
     }
 
